@@ -1,0 +1,17 @@
+model:
+  type: yolov8n.pt
+  imgsz: 640
+
+train:
+  data: configs/data.yaml
+  epochs: 50
+  batch_size: 16
+  device: "0"
+  workers: 4
+  optimizer: auto
+  lr0: 0.01
+
+paths:
+  project_dir: runs/train
+  experiment_name: pcb_defect_v1
+  output_model_dir: models

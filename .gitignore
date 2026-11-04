@@ -32,8 +32,12 @@ env/
 Thumbs.db
 .DS_Store
 
-# Private notes
+# Private notes and credentials
 NOTES.md
+gdrive_creds.json
+
+
+
 
 
 
