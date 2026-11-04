@@ -32,4 +32,8 @@ env/
 Thumbs.db
 .DS_Store
 
+# Private notes
+NOTES.md
+
+
 
