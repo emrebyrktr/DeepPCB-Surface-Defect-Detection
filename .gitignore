@@ -7,6 +7,9 @@ data/processed/
 # Models
 models/
 
+# YOLO training runs
+runs/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -34,8 +37,9 @@ Thumbs.db
 
 # Private notes and credentials
 NOTES.md
+MLOPS_CHECKLIST.md
 gdrive_creds.json
-
+pcb_mlflow/
 
 
 

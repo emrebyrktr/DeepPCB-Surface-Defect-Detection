@@ -1,3 +1,9 @@
+app:
+  title: "Industrial PCB Defect Detection API"
+  version: "1.0.0"
+  host: "0.0.0.0"
+  port: 8000
+
 model:
   type: yolov8n.pt
   imgsz: 640
@@ -10,6 +16,13 @@ train:
   workers: 4
   optimizer: auto
   lr0: 0.01
+
+inference:
+  model_path: models/pcb_defect_best.onnx
+  metadata_path: models/metadata.json
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+  device: "cpu"
 
 paths:
   project_dir: runs/train
