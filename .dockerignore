@@ -1,0 +1,39 @@
+# Sanal ortam ve Python onbellegi
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Git ve DVC
+.git/
+.gitignore
+.dvc/
+.dvcignore
+*.dvc
+
+# Veri katmanlari ve egitim dosyalari
+data/
+runs/
+ml/
+notebooks/
+scripts/
+tests/
+models/*.pt
+
+# Deney takibi ve loglar
+pcb_mlflow/
+mlruns/
+*.log
+
+# Ozel dokumanlar ve kimlikler
+NOTES.md
+MLOPS_CHECKLIST.md
+gdrive_creds.json
+*.docx
+
+# Docker ve editor dosyalari
+.vscode/
+.idea/
+
