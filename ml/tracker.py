@@ -1,9 +1,9 @@
-import os
 import hashlib
 import subprocess
 import platform
-import yaml
+from pathlib import Path
 from typing import Dict, Any, Optional, List
+import yaml
 import torch
 import mlflow
 
@@ -14,8 +14,12 @@ class MLflowTracker:
         tracking_uri: Optional[str] = None,
     ):
         if tracking_uri:
-            tracking_uri = os.path.abspath(tracking_uri)
-            mlflow.set_tracking_uri(tracking_uri)
+            uri_str = str(tracking_uri)
+            if uri_str.startswith(("http://", "https://", "file://", "sqlite://")):
+                resolved_uri = uri_str
+            else:
+                resolved_uri = Path(tracking_uri).resolve().as_uri()
+            mlflow.set_tracking_uri(resolved_uri)
         mlflow.set_experiment(experiment_name)
 
     def _get_git_commit(self) -> str:
@@ -27,9 +31,10 @@ class MLflowTracker:
             return "unknown"
 
     def _get_dvc_hash(self, dvc_file: str = "data/processed.dvc") -> str:
-        if os.path.exists(dvc_file):
+        dvc_path = Path(dvc_file)
+        if dvc_path.exists():
             try:
-                with open(dvc_file, "r", encoding="utf-8") as f:
+                with open(dvc_path, "r", encoding="utf-8") as f:
                     content = yaml.safe_load(f)
                 return content.get("outs", [{}])[0].get("md5", "unknown")
             except Exception:
@@ -37,10 +42,11 @@ class MLflowTracker:
         return "not_found"
 
     def _get_file_sha256(self, filepath: str) -> str:
-        if not os.path.exists(filepath):
+        file_path = Path(filepath)
+        if not file_path.exists():
             return "not_found"
         sha256 = hashlib.sha256()
-        with open(filepath, "rb") as f:
+        with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(65536), b""):
                 sha256.update(chunk)
         return sha256.hexdigest()
@@ -75,12 +81,13 @@ class MLflowTracker:
             mlflow.log_metrics(metrics)
 
             if artifacts:
-                for path in artifacts:
-                    if os.path.exists(path):
-                        if os.path.isdir(path):
-                            mlflow.log_artifacts(path, artifact_path=os.path.basename(path))
+                for item in artifacts:
+                    artifact_path = Path(item)
+                    if artifact_path.exists():
+                        if artifact_path.is_dir():
+                            mlflow.log_artifacts(str(artifact_path), artifact_path=artifact_path.name)
                         else:
-                            mlflow.log_artifact(path)
+                            mlflow.log_artifact(str(artifact_path))
 
-            if model_path and os.path.exists(model_path):
-                mlflow.log_artifact(model_path, artifact_path="weights")
+            if model_path and Path(model_path).exists():
+                mlflow.log_artifact(str(Path(model_path)), artifact_path="weights")

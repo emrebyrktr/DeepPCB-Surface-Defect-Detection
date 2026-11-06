@@ -20,7 +20,7 @@ train:
 inference:
   model_path: models/pcb_defect_best.onnx
   metadata_path: models/metadata.json
-  conf_threshold: 0.25
+  conf_threshold: 0.30
   iou_threshold: 0.45
   device: "cpu"
 

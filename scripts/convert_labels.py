@@ -9,7 +9,7 @@ def convert_one_label(src_path: Path, dst_path: Path, img_size: int = IMAGE_SIZE
     dst_path.parent.mkdir(parents=True, exist_ok=True)
     lines_out = []
 
-    with open(src_path, "r") as f:
+    with open(src_path, "r", encoding="utf-8") as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) != 5:
@@ -25,7 +25,7 @@ def convert_one_label(src_path: Path, dst_path: Path, img_size: int = IMAGE_SIZE
 
             lines_out.append(f"{cls} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}")
 
-    with open(dst_path, "w") as f:
+    with open(dst_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines_out))
 
 def main():

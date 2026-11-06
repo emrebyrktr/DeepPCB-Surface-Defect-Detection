@@ -9,7 +9,7 @@ CLASS_NAMES = ["open", "short", "mousebite", "spur", "copper", "pin-hole"]
 def count_classes(labels_dir: Path) -> Counter:
     counter = Counter()
     for label_file in labels_dir.glob("*.txt"):
-        with open(label_file, "r") as f:
+        with open(label_file, "r", encoding="utf-8") as f:
             for line in f:
                 parts = line.strip().split()
                 if parts:

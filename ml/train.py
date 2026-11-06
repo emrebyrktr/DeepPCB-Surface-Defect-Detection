@@ -1,4 +1,3 @@
-import os
 import shutil
 import logging
 from pathlib import Path
@@ -46,8 +45,8 @@ def train_model(config_path: str = "configs/config.yaml") -> Any:
 
     best_weight_path = Path(project_dir) / experiment_name / "weights" / "best.pt"
     if best_weight_path.exists():
-        os.makedirs(output_model_dir, exist_ok=True)
-        target_path = Path(output_model_dir) / f"{experiment_name}_best.pt"
+        Path(output_model_dir).mkdir(parents=True, exist_ok=True)
+        target_path = Path(output_model_dir) / "pcb_defect_best.pt"
         shutil.copy(best_weight_path, target_path)
         logger.info(f"Model saved to {target_path}")
 

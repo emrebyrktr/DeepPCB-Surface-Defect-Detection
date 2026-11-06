@@ -1,5 +1,5 @@
-import os
 import argparse
+from pathlib import Path
 import yaml
 from ultralytics import YOLO
 from ml.tracker import MLflowTracker
@@ -38,9 +38,11 @@ def evaluate_model(
     save_dir = str(metrics.save_dir)
 
     artifacts = [save_dir]
-    if os.path.exists("models/metadata.json"):
+    if Path("models/metadata.json").exists():
         artifacts.append("models/metadata.json")
-    if os.path.exists("models/model.onnx"):
+    if Path("models/pcb_defect_best.onnx").exists():
+        artifacts.append("models/pcb_defect_best.onnx")
+    elif Path("models/model.onnx").exists():
         artifacts.append("models/model.onnx")
 
     tracker = MLflowTracker(
@@ -60,14 +62,16 @@ def evaluate_model(
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--model", type=str, default="models/pcb_defect_best.pt")
     parser.add_argument("--data", type=str, default="configs/data.yaml")
+    parser.add_argument("--config", type=str, default="configs/config.yaml")
     parser.add_argument("--tracking-uri", type=str, default=None)
     args = parser.parse_args()
 
     evaluate_model(
         model_path=args.model,
         data_yaml=args.data,
+        config_path=args.config,
         tracking_uri=args.tracking_uri,
     )
 
