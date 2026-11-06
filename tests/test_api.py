@@ -2,9 +2,9 @@ import asyncio
 from pathlib import Path
 
 import cv2
+from httpx import ASGITransport, AsyncClient
 import numpy as np
 import pytest
-from httpx import ASGITransport, AsyncClient
 
 from app.api import app
 from app.core import DummyDetector, ONNXDetector
@@ -49,19 +49,6 @@ def test_health_endpoint():
                 assert data["status"] == "healthy"
                 assert "classes" in data
                 assert len(data["classes"]) == 6
-    run_async(_test())
-
-
-def test_monitoring_endpoint():
-    async def _test():
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/api/v1/monitoring")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["status"] == "healthy"
-            assert "uptime_seconds" in data
-            assert "total_requests" in data
     run_async(_test())
 
 

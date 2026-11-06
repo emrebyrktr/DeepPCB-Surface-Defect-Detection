@@ -21,5 +21,5 @@ async def predict_defects(
         detections=output["detections"],
         latency_ms=output["latency_ms"],
         filename=output.get("filename"),
-        io_read_ms=output.get("io_read_ms"),
     )
+

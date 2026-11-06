@@ -8,4 +8,5 @@ api_v1_router = APIRouter()
 
 api_v1_router.include_router(health_router, tags=["Health"])
 api_v1_router.include_router(predict_router, tags=["Inference"])
-api_v1_router.include_router(monitoring_router, tags=["Monitoring"])
+api_v1_router.include_router(monitoring_router, tags=["Monitoring (Roadmap)"])
+

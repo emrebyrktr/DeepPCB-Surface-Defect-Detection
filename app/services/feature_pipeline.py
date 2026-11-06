@@ -27,9 +27,3 @@ class ImageFeaturePipeline:
             )
 
         return image
-
-    def get_image_info(self, image: np.ndarray) -> dict[str, int]:
-        h, w = image.shape[:2]
-        c = image.shape[2] if len(image.shape) > 2 else 1
-        return {"height": h, "width": w, "channels": c}
-

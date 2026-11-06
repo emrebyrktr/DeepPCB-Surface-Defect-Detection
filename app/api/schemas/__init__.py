@@ -1,17 +1,11 @@
-from app.api.schemas.request import BoundingBox, Detection, PredictionParams
-from app.api.schemas.response import (
-    DetectionResponse,
-    HealthResponse,
-    LatencyInfo,
-    MonitoringResponse,
-)
+from app.api.schemas.request import BoundingBox, Detection
+from app.api.schemas.response import DetectionResponse, HealthResponse, LatencyInfo
 
 __all__ = [
     "BoundingBox",
     "Detection",
-    "PredictionParams",
     "LatencyInfo",
     "DetectionResponse",
     "HealthResponse",
-    "MonitoringResponse",
 ]
+

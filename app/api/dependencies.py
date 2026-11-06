@@ -14,3 +14,4 @@ def get_inference_service(
 ) -> InferenceService:
     """InferenceService nesnesini bağımlılık enjeksiyonu ile sağlar."""
     return InferenceService(detector=detector)
+

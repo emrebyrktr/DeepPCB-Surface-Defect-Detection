@@ -1,24 +1,13 @@
-import time
+"""Sistem ve Model İzleme (Monitoring) Endpoint'leri.
 
-from fastapi import APIRouter, Request
+TODO: İleride sistemi canlıya alma (Production) aşamasında;
+Prometheus metrikleri, veri/kavram kayması (Data Drift - Evidently) ve sistem
+izleme bileşenleri ekleneceği zaman bu dosya doldurulacaktır.
+"""
 
-from app.api.schemas.response import MonitoringResponse
-from app.core.config import settings
+from fastapi import APIRouter
 
 router = APIRouter()
 
+# TODO: Canlı izleme ve metrik endpoint'leri buraya eklenecektir.
 
-@router.get("/monitoring", response_model=MonitoringResponse, summary="Sistem Metrikleri")
-async def get_monitoring_metrics(request: Request):
-    """API sunucusu çalışma süresi ve istek sayaçlarını döndürür."""
-    start_time = getattr(request.app.state, "start_time", time.time())
-    uptime = time.time() - start_time
-    total_requests = getattr(request.app.state, "request_count", 0)
-
-    return MonitoringResponse(
-        status="healthy",
-        uptime_seconds=round(uptime, 2),
-        total_requests=total_requests,
-        active_model=settings.MODEL_PATH,
-        device=settings.DEVICE,
-    )

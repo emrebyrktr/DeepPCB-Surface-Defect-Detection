@@ -18,3 +18,4 @@ async def health_check(detector: BaseDetector = Depends(get_detector)):
         device=settings.DEVICE,
         classes=detector.classes,
     )
+
