@@ -1,0 +1,98 @@
+schema: '2.0'
+stages:
+  prepare_data:
+    cmd: python ml/prepare_data.py
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 484a74c0707d0143aa1f6a47a3135419.dir
+      size: 49935059
+      nfiles: 3001
+    - path: ml/prepare_data.py
+      hash: md5
+      md5: 464eca3083aceecc109bf10662008f75
+      size: 5153
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 171b4813c9c78821904e0dc45c931e46.dir
+      size: 50205070
+      nfiles: 3002
+  train:
+    cmd: python ml/train.py --config configs/config.yaml
+    deps:
+    - path: configs/config.yaml
+      hash: md5
+      md5: 3deab0c81910aa700ccaaf8494bbfd4e
+      size: 509
+    - path: configs/data.yaml
+      hash: md5
+      md5: d23917e3f9a13651445203affbd3255f
+      size: 168
+    - path: data/processed
+      hash: md5
+      md5: 171b4813c9c78821904e0dc45c931e46.dir
+      size: 50205070
+      nfiles: 3002
+    - path: ml/train.py
+      hash: md5
+      md5: f1bd1f92de4bba4e77e00596f20b0c3b
+      size: 2039
+    outs:
+    - path: models/pcb_defect_best.pt
+      hash: md5
+      md5: 0c88d7ca036c2aedc342503f8cd0da6e
+      size: 6508906
+  export:
+    cmd: python ml/export_package.py --model models/pcb_defect_best.pt
+    deps:
+    - path: configs/config.yaml
+      hash: md5
+      md5: 3deab0c81910aa700ccaaf8494bbfd4e
+      size: 509
+    - path: ml/export_package.py
+      hash: md5
+      md5: 91798c2cc7b52741ce9e8b2fd5b50c1b
+      size: 1472
+    - path: models/pcb_defect_best.pt
+      hash: md5
+      md5: 0c88d7ca036c2aedc342503f8cd0da6e
+      size: 6508906
+    outs:
+    - path: models/metadata.json
+      hash: md5
+      md5: 6b47bb287f16f023c66a95e4c0296b21
+      size: 394
+    - path: models/pcb_defect_best.onnx
+      hash: md5
+      md5: be8fdc3b48434fb0661c7a0dd36d918e
+      size: 12778076
+  evaluate:
+    cmd: python ml/evaluate.py --model models/pcb_defect_best.onnx --config 
+      configs/config.yaml
+    deps:
+    - path: configs/config.yaml
+      hash: md5
+      md5: 3deab0c81910aa700ccaaf8494bbfd4e
+      size: 509
+    - path: configs/data.yaml
+      hash: md5
+      md5: d23917e3f9a13651445203affbd3255f
+      size: 168
+    - path: data/processed/test
+      hash: md5
+      md5: 7fee01c1483982b9d8aedbc6b2efc005.dir
+      size: 4951694
+      nfiles: 301
+    - path: ml/evaluate.py
+      hash: md5
+      md5: 2850d535e966a5fd53ce4ac9b80f127c
+      size: 2620
+    - path: ml/tracker.py
+      hash: md5
+      md5: 37e163e4b199cc1ea5b4441339993b51
+      size: 3229
+    - path: models/pcb_defect_best.onnx
+      hash: md5
+      md5: be8fdc3b48434fb0661c7a0dd36d918e
+      size: 12778076

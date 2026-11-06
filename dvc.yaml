@@ -1,0 +1,39 @@
+stages:
+  prepare_data:
+    cmd: python ml/prepare_data.py
+    deps:
+      - data/raw
+      - ml/prepare_data.py
+    outs:
+      - data/processed
+
+  train:
+    cmd: python ml/train.py --config configs/config.yaml
+    deps:
+      - configs/config.yaml
+      - configs/data.yaml
+      - data/processed
+      - ml/train.py
+    outs:
+      - models/pcb_defect_best.pt
+
+  export:
+    cmd: python ml/export_package.py --model models/pcb_defect_best.pt
+    deps:
+      - configs/config.yaml
+      - ml/export_package.py
+      - models/pcb_defect_best.pt
+    outs:
+      - models/metadata.json
+      - models/pcb_defect_best.onnx
+
+  evaluate:
+    cmd: python ml/evaluate.py --model models/pcb_defect_best.onnx --config configs/config.yaml
+    deps:
+      - configs/config.yaml
+      - configs/data.yaml
+      - data/processed/test
+      - ml/evaluate.py
+      - ml/tracker.py
+      - models/pcb_defect_best.onnx
+
