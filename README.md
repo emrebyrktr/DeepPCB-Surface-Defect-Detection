@@ -48,7 +48,7 @@ Model Google Colab Tesla T4 GPU üzerinde 50 epoch eğitilmiş ve bağımsız te
 | **mAP@50-95** | **%76.8** | Farklı IoU eşiklerindeki katı doğruluk |
 | **Precision** | **%97.3** | Yanlış alarm (False Positive) düşüklüğü |
 | **Recall** | **%95.2** | Kusuru kaçırmama (False Negative) başarısı |
-| **Latency (CPU)** | **~330 ms** | Uçtan uca toplam SLA süresi |
+| **Latency (CPU Tekil)** | **~330 ms** | Uçtan uca toplam SLA süresi |
 
 ### Sınıf Bazlı mAP@50 Dağılımı
 * `copper`: **%99.5**
@@ -57,6 +57,23 @@ Model Google Colab Tesla T4 GPU üzerinde 50 epoch eğitilmiş ve bağımsız te
 * `spur`: **%98.1**
 * `open`: **%98.0**
 * `short`: **%95.2** *(En kritik sınıf)*
+
+### 🚀 Eşzamanlı Yük Testi & Kapasite (Locust Benchmark)
+Canlı Docker konteyneri üzerinde `tests/locustfile.py` ile eşzamanlı istek kapasitesi ve yanıt süreleri test edilmiştir:
+
+| Parametre / Metrik | Değer | Açıklama |
+| :--- | :---: | :--- |
+| **Eşzamanlı Kullanıcı** | **20 Sanal Kullanıcı** | Ramp-up: 5 kullanıcı / sn |
+| **Hata Oranı (Fail Rate)** | **%0.00** | Yük altında kesinti/hata yaşanmadı |
+| **Throughput (RPS)** | **~2.1 req/s** | CPU tabanlı Docker ortamında eşzamanlı görsel işleme |
+| **Health Check Yanıtı** | **~480 ms (Med)** | Canlılık kontrolü yanıt süresi |
+| **Predict Yanıtı** | **3.0 - 9.8 s** | Ağır nesne tespiti eşzamanlı kuyruk süresi |
+
+Yük testini yerel ortamınızda interaktif web arayüzü ile çalıştırmak için:
+```powershell
+locust -f tests/locustfile.py --host http://localhost:8000
+# Web arayüzü: http://localhost:8089
+```
 
 ---
 
