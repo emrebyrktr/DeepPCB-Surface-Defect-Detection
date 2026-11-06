@@ -2,9 +2,9 @@ import asyncio
 from pathlib import Path
 
 import cv2
-from httpx import ASGITransport, AsyncClient
 import numpy as np
 import pytest
+from httpx import ASGITransport, AsyncClient
 
 from app.api import app
 from app.core import DummyDetector, ONNXDetector

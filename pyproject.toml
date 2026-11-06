@@ -8,3 +8,7 @@ ignore = [
     "E501",  # Satir uzunlugu
     "B008",  # FastAPI File(...) ve Depends(...) cagrilarina izin ver
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
