@@ -1,24 +1,16 @@
 from pathlib import Path
 from contextlib import asynccontextmanager
-import yaml
 import cv2
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.core.onnx_detector import ONNXDetector
+from src.core import ONNXDetector
+from src.utils import get_app_config
 from src.api.schemas import DetectionResponse, HealthResponse
 
 
-def load_app_config(config_path: str = "configs/config.yaml") -> dict:
-    cfg_path = Path(config_path)
-    if cfg_path.exists():
-        with open(cfg_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f).get("app", {})
-    return {"title": "PCB Defect Detection API", "version": "1.0.0"}
-
-
-app_config = load_app_config()
+app_config = get_app_config()
 
 
 @asynccontextmanager

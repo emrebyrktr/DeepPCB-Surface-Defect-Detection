@@ -5,9 +5,8 @@ import cv2
 import numpy as np
 from httpx import ASGITransport, AsyncClient
 
-from src.api.app import app
-from src.core.dummy_detector import DummyDetector
-from src.core.onnx_detector import ONNXDetector
+from src.api import app
+from src.core import DummyDetector, ONNXDetector
 
 
 @pytest.fixture(autouse=True)

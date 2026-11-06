@@ -3,7 +3,7 @@ import json
 import yaml
 import pytest
 
-from src.utils.config_loader import load_yaml, get_app_config, get_inference_config
+from src.utils import load_yaml, get_app_config, get_inference_config
 
 
 def test_config_yaml_exists():
