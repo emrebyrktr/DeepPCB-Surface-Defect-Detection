@@ -59,20 +59,24 @@ Model Google Colab Tesla T4 GPU üzerinde 50 epoch eğitilmiş ve bağımsız te
 * `short`: **%95.2** *(En kritik sınıf)*
 
 ### 🚀 Eşzamanlı Yük Testi & Kapasite (Locust Benchmark)
-Canlı Docker konteyneri üzerinde `tests/locustfile.py` ile eşzamanlı istek kapasitesi ve yanıt süreleri test edilmiştir:
 
-| Parametre / Metrik | Değer | Açıklama |
-| :--- | :---: | :--- |
-| **Eşzamanlı Kullanıcı** | **20 Sanal Kullanıcı** | Ramp-up: 5 kullanıcı / sn |
-| **Hata Oranı (Fail Rate)** | **%0.00** | Yük altında kesinti/hata yaşanmadı |
-| **Throughput (RPS)** | **~2.1 req/s** | CPU tabanlı Docker ortamında eşzamanlı görsel işleme |
-| **Health Check Yanıtı** | **~480 ms (Med)** | Canlılık kontrolü yanıt süresi |
-| **Predict Yanıtı** | **3.0 - 9.8 s** | Ağır nesne tespiti eşzamanlı kuyruk süresi |
+Canlı Docker konteyneri üzerinde `tests/locustfile.py` ile 20 eşzamanlı sanal kullanıcı simüle edilerek sistemin stres ve yük altındaki davranışı ölçülmüştür:
 
-Yük testini yerel ortamınızda interaktif web arayüzü ile çalıştırmak için:
+| Endpoint | İstek Sayısı | Hata (%) | Medyan (ms) | %95 Dilimi (p95) | Ortalama (ms) | Min / Max (ms) | Anlık RPS |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`GET /health`** | 19 | %0.00 | 2,300 | 5,500 | 2,860 | 1,114 / 5,501 | 0.2 req/s |
+| **`POST /predict`** | 81 | %0.00 | 6,400 | 11,000 | 6,805 | 4,256 / 11,714 | 3.0 req/s |
+| **Genel Toplam (Aggregated)** | **100** | **%0.00** | **6,300** | **11,000** | **6,055** | **1,114 / 11,714** | **3.2 req/s** |
+
+#### 📌 Yük Testi Çıkarımları:
+* **Kararlılık (Zero Failure):** Ağır nesne tespiti yükü altında 100 isteğin tamamı hatasız yanıtlandı; bellek taşması (OOM) veya servis kesintisi yaşanmadı.
+* **CPU Throughput:** Tek konteyner ve CPU üzerinde saniyede **3.2 istek (RPS)** seviyesinde görsel işleme kapasitesine ulaşıldı.
+* **Ölçekleme Önerisi:** Üretim bandında daha düşük gecikme (<500 ms) hedeflendiğinde; GPU hızlandırma (TensorRT) veya Kubernetes (K8s) ile yatay çoğaltma (horizontal replica scaling) uygulanabilir.
+
+Yük testini yerel ortamınızda interaktif web paneliyle çalıştırmak için:
 ```powershell
 locust -f tests/locustfile.py --host http://localhost:8000
-# Web arayüzü: http://localhost:8089
+# Web Paneli: http://localhost:8089
 ```
 
 ---
