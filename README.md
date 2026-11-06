@@ -87,19 +87,41 @@ DataProcess/
 │   ├── metadata.json
 │   ├── models.dvc
 │   └── pcb_defect_best.onnx
-├── src/
+├── app/
 │   ├── api/
-│   │   ├── app.py
-│   │   └── schemas.py
+│   │   ├── dependencies.py
+│   │   ├── main.py
+│   │   ├── schemas/
+│   │   │   ├── request.py
+│   │   │   └── response.py
+│   │   └── v1/
+│   │       ├── endpoints/
+│   │       │   ├── health.py
+│   │       │   ├── monitoring.py
+│   │       │   └── predict.py
+│   │       └── router.py
 │   ├── core/
 │   │   ├── base_detector.py
+│   │   ├── config.py
 │   │   ├── dummy_detector.py
-│   │   └── onnx_detector.py
+│   │   ├── onnx_detector.py
+│   │   └── security.py
+│   ├── services/
+│   │   ├── feature_pipeline.py
+│   │   ├── inference_service.py
+│   │   └── model_loader.py
+│   ├── ui/
+│   │   └── app.py
 │   └── utils/
 │       ├── config_loader.py
 │       ├── decorators.py
-│       └── logger.py
+│       ├── helpers.py
+│       ├── logger.py
+│       └── validators.py
 └── tests/
+    ├── load/
+    │   ├── benchmark_stats.csv
+    │   └── locustfile.py
     ├── test_api.py
     └── test_config.py
 ```
@@ -128,11 +150,17 @@ docker run -d -p 8000:8000 --name pcb-api pcb-defect-api:latest
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# Üretim paketlerini kurun
-pip install -r requirements.txt
+# Geliştirme paketlerini kurun
+pip install -r requirements-dev.txt
 
 # API sunucusunu başlatın
-uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Streamlit görsel stüdyosunu başlatın (ayrı bir terminalde)
+streamlit run app/ui/app.py
+
+# Yük testini başlatın (Locust)
+locust -f tests/load/locustfile.py --host http://localhost:8000
 ```
 
 ---

@@ -3,13 +3,13 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from src.utils.logger import setup_logger
+from app.utils.logger import setup_logger
 
 logger = setup_logger("timing")
 
 
 def timeit(func: Callable) -> Callable:
-    """Fonksiyonun calisma suresini milisaniye cinsinden loglar."""
+    """Fonksiyonun çalışma süresini milisaniye cinsinden loglar."""
     @wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         start = time.perf_counter()
@@ -18,4 +18,3 @@ def timeit(func: Callable) -> Callable:
         logger.debug(f"{func.__name__} calisma suresi: {elapsed_ms:.2f} ms")
         return result
     return wrapper
-

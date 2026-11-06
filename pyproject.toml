@@ -8,4 +8,3 @@ ignore = [
     "E501",  # Satir uzunlugu
     "B008",  # FastAPI File(...) ve Depends(...) cagrilarina izin ver
 ]
-

@@ -5,7 +5,7 @@ import yaml
 
 
 def load_yaml(file_path: str | Path) -> dict[str, Any]:
-    """YAML dosyasini guvenle yukler."""
+    """YAML dosyasını güvenle yükler."""
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"Konfigurasyon dosyasi bulunamadi: {path}")
@@ -16,11 +16,10 @@ def load_yaml(file_path: str | Path) -> dict[str, Any]:
 
 
 def get_app_config(config_path: str | Path = "configs/config.yaml") -> dict[str, Any]:
-    """FastAPI servis ayarlarini dondurur."""
+    """FastAPI servis ayarlarını döndürür."""
     return load_yaml(config_path).get("app", {})
 
 
 def get_inference_config(config_path: str | Path = "configs/config.yaml") -> dict[str, Any]:
-    """Cikarim (inference) ayarlarini dondurur."""
+    """Çıkarım (inference) ayarlarını döndürür."""
     return load_yaml(config_path).get("inference", {})
-

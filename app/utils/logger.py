@@ -3,7 +3,7 @@ import sys
 
 
 def setup_logger(name: str = "pcb_defect", level: int = logging.INFO) -> logging.Logger:
-    """Tekrarlanan handler eklenmesini onleyen standart logger dondurur."""
+    """Tekrarlanan handler eklenmesini önleyen standart logger döndürür."""
     logger = logging.getLogger(name)
     if not logger.handlers:
         logger.setLevel(level)

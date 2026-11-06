@@ -2,13 +2,13 @@ from typing import Any
 
 import numpy as np
 
-from src.core.base_detector import BaseDetector
+from app.core.base_detector import BaseDetector
 
 
 class DummyDetector(BaseDetector):
     """Testler ve prototipleme icin sahte cikarim motoru."""
 
-    def __init__(self, classes: list[str] = None):
+    def __init__(self, classes: list[str] | None = None):
         self.classes = classes or ["open", "short", "mousebite", "spur", "copper", "pin-hole"]
 
     def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, float, float, float]:
@@ -50,4 +50,3 @@ class DummyDetector(BaseDetector):
                 "total": 7.4,
             },
         }
-

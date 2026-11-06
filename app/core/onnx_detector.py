@@ -8,17 +8,17 @@ import numpy as np
 import onnxruntime as ort
 import yaml
 
-from src.core.base_detector import BaseDetector
+from app.core.base_detector import BaseDetector
 
 
 class ONNXDetector(BaseDetector):
     def __init__(
         self,
         config_path: str = "configs/config.yaml",
-        model_path: str = None,
-        metadata_path: str = None,
-        conf_threshold: float = None,
-        iou_threshold: float = None,
+        model_path: str | None = None,
+        metadata_path: str | None = None,
+        conf_threshold: float | None = None,
+        iou_threshold: float | None = None,
     ):
         with open(config_path, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
@@ -54,8 +54,8 @@ class ONNXDetector(BaseDetector):
     def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, float, float, float]:
         orig_h, orig_w = image.shape[:2]
         scale = min(self.imgsz / orig_w, self.imgsz / orig_h)
-        new_w = int(round(orig_w * scale))
-        new_h = int(round(orig_h * scale))
+        new_w = round(orig_w * scale)
+        new_h = round(orig_h * scale)
 
         pad_x = (self.imgsz - new_w) / 2.0
         pad_y = (self.imgsz - new_h) / 2.0
@@ -84,7 +84,7 @@ class ONNXDetector(BaseDetector):
         orig_h, orig_w = orig_shape
         scale, pad_x, pad_y = scale_info
 
-        # YOLOv8 ONNX ciktisi: [1, 4 + num_classes, 8400] -> transpose -> (8400, 10)
+        # YOLOv8 ONNX: (8400, 10)
         predictions = outputs[0].T
 
         boxes = []

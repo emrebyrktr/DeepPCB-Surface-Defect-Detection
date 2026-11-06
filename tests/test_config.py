@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from src.utils import get_app_config, get_inference_config, load_yaml
+from app.utils import get_app_config, get_inference_config, load_yaml
 
 
 def test_config_yaml_exists():
@@ -53,4 +53,3 @@ def test_metadata_consistency():
         assert meta.get("version") == "1.0.0"
         data_cfg = load_yaml("configs/data.yaml")
         assert meta.get("classes") == data_cfg.get("names")
-

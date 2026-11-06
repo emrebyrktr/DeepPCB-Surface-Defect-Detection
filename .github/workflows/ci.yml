@@ -29,7 +29,7 @@ jobs:
 
       - name: Run Linter (Ruff)
         run: |
-          ruff check src/ tests/ configs/
+          ruff check app/ tests/ configs/
 
       - name: Run Automated Test Suite (Pytest)
         run: |
@@ -61,4 +61,3 @@ jobs:
       - name: Build Docker Image
         run: |
           docker build -t pcb-defect-api:latest .
-

@@ -6,13 +6,13 @@ import numpy as np
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from src.api import app
-from src.core import DummyDetector, ONNXDetector
+from app.api import app
+from app.core import DummyDetector, ONNXDetector
 
 
 @pytest.fixture(autouse=True)
 def setup_detector():
-    """Test calismadan once app.state.detector nesnesini ayarlar."""
+    """Test çalışmadan önce app.state.detector nesnesini ayarlar."""
     if not hasattr(app.state, "detector") or app.state.detector is None:
         model_path = Path("models/pcb_defect_best.onnx")
         if model_path.exists():
@@ -34,6 +34,7 @@ def test_root_endpoint():
             data = resp.json()
             assert "docs" in data
             assert "health" in data
+            assert "api_v1" in data
     run_async(_test())
 
 
@@ -41,12 +42,26 @@ def test_health_endpoint():
     async def _test():
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.get("/health")
+            for ep in ["/health", "/api/v1/health"]:
+                resp = await client.get(ep)
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["status"] == "healthy"
+                assert "classes" in data
+                assert len(data["classes"]) == 6
+    run_async(_test())
+
+
+def test_monitoring_endpoint():
+    async def _test():
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/api/v1/monitoring")
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "healthy"
-            assert "classes" in data
-            assert len(data["classes"]) == 6
+            assert "uptime_seconds" in data
+            assert "total_requests" in data
     run_async(_test())
 
 
@@ -55,7 +70,7 @@ def test_predict_invalid_content_type():
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             files = {"file": ("test.txt", b"plain text data", "text/plain")}
-            resp = await client.post("/predict", files=files)
+            resp = await client.post("/api/v1/predict", files=files)
             assert resp.status_code == 400
             assert "Gecersiz dosya formati" in resp.json()["detail"]
     run_async(_test())
@@ -66,7 +81,7 @@ def test_predict_corrupted_image():
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             files = {"file": ("corrupt.jpg", b"corrupted bytes", "image/jpeg")}
-            resp = await client.post("/predict", files=files)
+            resp = await client.post("/api/v1/predict", files=files)
             assert resp.status_code == 400
             assert "okunamadi" in resp.json()["detail"]
     run_async(_test())
@@ -81,7 +96,7 @@ def test_predict_synthetic_image():
             _, encoded = cv2.imencode(".jpg", img)
             files = {"file": ("synthetic.jpg", encoded.tobytes(), "image/jpeg")}
 
-            resp = await client.post("/predict", files=files)
+            resp = await client.post("/api/v1/predict", files=files)
             assert resp.status_code == 200
             data = resp.json()
             assert data["success"] is True
@@ -90,4 +105,3 @@ def test_predict_synthetic_image():
             assert "latency_ms" in data
             assert "inference" in data["latency_ms"]
     run_async(_test())
-
