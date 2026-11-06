@@ -1,11 +1,12 @@
-import time
 import json
+import time
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
-import yaml
+from typing import Any
+
 import cv2
 import numpy as np
 import onnxruntime as ort
+import yaml
 
 from src.core.base_detector import BaseDetector
 
@@ -43,14 +44,14 @@ class ONNXDetector(BaseDetector):
 
         self.classes = self._load_metadata()
 
-    def _load_metadata(self) -> List[str]:
+    def _load_metadata(self) -> list[str]:
         if self.metadata_path.exists():
             with open(self.metadata_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 return data.get("classes", [])
         return ["open", "short", "mousebite", "spur", "copper", "pin-hole"]
 
-    def preprocess(self, image: np.ndarray) -> Tuple[np.ndarray, float, float, float]:
+    def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, float, float, float]:
         orig_h, orig_w = image.shape[:2]
         scale = min(self.imgsz / orig_w, self.imgsz / orig_h)
         new_w = int(round(orig_w * scale))
@@ -77,9 +78,9 @@ class ONNXDetector(BaseDetector):
     def postprocess(
         self,
         outputs: np.ndarray,
-        orig_shape: Tuple[int, int],
-        scale_info: Tuple[float, float, float],
-    ) -> List[Dict[str, Any]]:
+        orig_shape: tuple[int, int],
+        scale_info: tuple[float, float, float],
+    ) -> list[dict[str, Any]]:
         orig_h, orig_w = orig_shape
         scale, pad_x, pad_y = scale_info
 
@@ -144,7 +145,7 @@ class ONNXDetector(BaseDetector):
 
         return detections
 
-    def predict(self, image: np.ndarray) -> Dict[str, Any]:
+    def predict(self, image: np.ndarray) -> dict[str, Any]:
         t0 = time.perf_counter()
         blob, scale, pad_x, pad_y = self.preprocess(image)
         t1 = time.perf_counter()

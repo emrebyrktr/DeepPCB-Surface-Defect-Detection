@@ -1,8 +1,9 @@
 import asyncio
 from pathlib import Path
-import pytest
+
 import cv2
 import numpy as np
+import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.api import app

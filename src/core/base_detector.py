@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
+
 import numpy as np
 
 
@@ -13,9 +14,9 @@ class BaseDetector(ABC):
         pass
 
     @abstractmethod
-    def postprocess(self, outputs: Any, original_shape: tuple) -> Dict[str, Any]:
+    def postprocess(self, outputs: Any, original_shape: tuple) -> dict[str, Any]:
         pass
 
     @abstractmethod
-    def predict(self, image: np.ndarray) -> Dict[str, Any]:
+    def predict(self, image: np.ndarray) -> dict[str, Any]:
         pass

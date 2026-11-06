@@ -1,9 +1,7 @@
-from pathlib import Path
 import json
-import yaml
-import pytest
+from pathlib import Path
 
-from src.utils import load_yaml, get_app_config, get_inference_config
+from src.utils import get_app_config, get_inference_config, load_yaml
 
 
 def test_config_yaml_exists():

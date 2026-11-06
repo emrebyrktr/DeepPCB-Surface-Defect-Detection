@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any
+
 import numpy as np
 
 from src.core.base_detector import BaseDetector
@@ -7,10 +8,10 @@ from src.core.base_detector import BaseDetector
 class DummyDetector(BaseDetector):
     """Testler ve prototipleme icin sahte cikarim motoru."""
 
-    def __init__(self, classes: List[str] = None):
+    def __init__(self, classes: list[str] = None):
         self.classes = classes or ["open", "short", "mousebite", "spur", "copper", "pin-hole"]
 
-    def preprocess(self, image: np.ndarray) -> Tuple[np.ndarray, float, float, float]:
+    def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, float, float, float]:
         return np.zeros((1, 3, 640, 640), dtype=np.float32), 1.0, 0.0, 0.0
 
     def forward(self, blob: np.ndarray) -> np.ndarray:
@@ -19,9 +20,9 @@ class DummyDetector(BaseDetector):
     def postprocess(
         self,
         outputs: Any,
-        orig_shape: Tuple[int, int],
-        scale_info: Tuple[float, float, float] = (1.0, 0.0, 0.0),
-    ) -> List[Dict[str, Any]]:
+        orig_shape: tuple[int, int],
+        scale_info: tuple[float, float, float] = (1.0, 0.0, 0.0),
+    ) -> list[dict[str, Any]]:
         return [
             {
                 "box": {"x1": 10.0, "y1": 10.0, "x2": 50.0, "y2": 50.0},
@@ -31,7 +32,7 @@ class DummyDetector(BaseDetector):
             }
         ]
 
-    def predict(self, image: np.ndarray) -> Dict[str, Any]:
+    def predict(self, image: np.ndarray) -> dict[str, Any]:
         return {
             "detections": [
                 {

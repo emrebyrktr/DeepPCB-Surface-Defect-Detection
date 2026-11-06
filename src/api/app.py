@@ -1,14 +1,13 @@
-from pathlib import Path
 from contextlib import asynccontextmanager
+
 import cv2
 import numpy as np
-from fastapi import FastAPI, UploadFile, File, HTTPException, status
+from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.schemas import DetectionResponse, HealthResponse
 from src.core import ONNXDetector
 from src.utils import get_app_config
-from src.api.schemas import DetectionResponse, HealthResponse
-
 
 app_config = get_app_config()
 

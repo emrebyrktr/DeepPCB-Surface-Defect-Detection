@@ -1,4 +1,4 @@
-from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -26,9 +26,9 @@ class LatencyInfo(BaseModel):
 class DetectionResponse(BaseModel):
     success: bool = True
     total_defects: int = Field(..., description="Tespit edilen toplam kusur sayisi")
-    detections: List[Detection] = Field(default_factory=list, description="Kusur listesi")
+    detections: list[Detection] = Field(default_factory=list, description="Kusur listesi")
     latency_ms: LatencyInfo
-    filename: Optional[str] = None
+    filename: str | None = None
 
 
 class HealthResponse(BaseModel):
@@ -36,4 +36,4 @@ class HealthResponse(BaseModel):
     model_name: str
     model_version: str
     device: str
-    classes: List[str]
+    classes: list[str]

@@ -1,6 +1,8 @@
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Any
+from typing import Any
+
 from src.utils.logger import setup_logger
 
 logger = setup_logger("timing")
