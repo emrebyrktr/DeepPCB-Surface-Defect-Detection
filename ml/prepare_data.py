@@ -1,7 +1,8 @@
 import json
 import shutil
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
+from tempfile import mkdtemp
 
 IMAGE_SIZE = 640
 RAW_DIR = Path("data/raw")
@@ -9,123 +10,198 @@ INTERIM_DIR = Path("data/interim")
 PROCESSED_DIR = Path("data/processed")
 SPLITS = ["train", "valid", "test"]
 CLASS_NAMES = ["open", "short", "mousebite", "spur", "copper", "pin-hole"]
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
-def clamp(val: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
-    """Koordinatların [0.0, 1.0] aralığı dışına taşmasını engeller."""
-    return max(min_val, min(val, max_val))
+class OutputRecoveryError(RuntimeError):
+    """Publication failed and the original outputs require manual recovery."""
+
+    def __init__(self, workspace: Path):
+        self.workspace = workspace
+        super().__init__(f"Output recovery failed; original backups preserved at {workspace}")
 
 
 def convert_one_label(src_path: Path, dst_path: Path, img_size: int = IMAGE_SIZE) -> int:
-    """Pascal VOC piksel formatını YOLO normalize formata çevirir."""
-    dst_path.parent.mkdir(parents=True, exist_ok=True)
+    """Validate pixel boxes and convert them to normalized YOLO labels."""
+    if img_size <= 0:
+        raise ValueError("Image size must be positive")
     lines_out = []
-
-    with open(src_path, "r", encoding="utf-8") as f:
-        for line in f:
-            parts = line.strip().split()
-            if len(parts) != 5:
-                continue
-
+    for line_number, line in enumerate(src_path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        context = f"{src_path}:{line_number}"
+        parts = line.split()
+        if len(parts) != 5:
+            raise ValueError(f"{context}: expected xmin ymin xmax ymax class_id")
+        try:
             x_min, y_min, x_max, y_max, class_id = map(int, parts)
+        except ValueError as exc:
+            raise ValueError(f"{context}: coordinates and class_id must be integers") from exc
+        if not 1 <= class_id <= len(CLASS_NAMES):
+            raise ValueError(f"{context}: class_id must be between 1 and {len(CLASS_NAMES)}")
+        if not (0 <= x_min < x_max <= img_size and 0 <= y_min < y_max <= img_size):
+            raise ValueError(f"{context}: box must have positive area within {img_size}x{img_size}")
 
-            # Geçersiz kutuları (genişliği veya yüksekliği <= 0 olanları) atla
-            if x_max <= x_min or y_max <= y_min:
-                continue
+        x_center = (x_min + x_max) / 2 / img_size
+        y_center = (y_min + y_max) / 2 / img_size
+        width = (x_max - x_min) / img_size
+        height = (y_max - y_min) / img_size
+        lines_out.append(
+            f"{class_id - 1} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}"
+        )
 
-            x_center = clamp((x_min + x_max) / 2 / img_size)
-            y_center = clamp((y_min + y_max) / 2 / img_size)
-            width    = clamp((x_max - x_min) / img_size)
-            height   = clamp((y_max - y_min) / img_size)
-            cls      = class_id - 1  # 1-indexed -> 0-indexed
-
-            if 0 <= cls < len(CLASS_NAMES):
-                lines_out.append(f"{cls} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}")
-
-    with open(dst_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines_out))
-
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+    dst_path.write_text("\n".join(lines_out), encoding="utf-8")
     return len(lines_out)
 
 
 def count_classes(labels_dir: Path) -> Counter:
-    """Belirtilen klasördeki etiketlerin sınıf dağılımını sayar."""
     counter = Counter()
-    for label_file in labels_dir.glob("*.txt"):
-        with open(label_file, "r", encoding="utf-8") as f:
-            for line in f:
-                parts = line.strip().split()
-                if parts:
-                    cls_id = int(parts[0])
-                    counter[cls_id] += 1
+    for label_file in sorted(labels_dir.glob("*.txt")):
+        for line in label_file.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                counter[int(line.split()[0])] += 1
     return counter
 
 
-def build_processed_split(split: str) -> dict:
-    """
-    1. raw/{split}/labels -> interim/{split}/labels (YOLO dönüşümü)
-    2. raw/{split}/images ve interim/{split}/labels -> processed/{split}/ (Eşleştirme ve Kopyalama)
-    """
-    src_labels_dir = RAW_DIR / split / "labels"
-    src_images_dir = RAW_DIR / split / "images"
-    interim_labels_dir = INTERIM_DIR / split / "labels"
+def _raw_pairs(raw_dir: Path, split: str) -> list[tuple[Path, Path]]:
+    images_dir = raw_dir / split / "images"
+    labels_dir = raw_dir / split / "labels"
+    if not images_dir.is_dir() or not labels_dir.is_dir():
+        raise ValueError(f"{split}: raw images and labels directories must both exist")
 
-    proc_labels_dir = PROCESSED_DIR / split / "labels"
-    proc_images_dir = PROCESSED_DIR / split / "images"
-    proc_labels_dir.mkdir(parents=True, exist_ok=True)
-    proc_images_dir.mkdir(parents=True, exist_ok=True)
+    images = {}
+    for image in sorted(images_dir.iterdir()):
+        if image.is_file() and image.suffix.lower() in IMAGE_SUFFIXES:
+            if image.stem in images:
+                raise ValueError(f"{split}: multiple images have stem {image.stem!r}")
+            images[image.stem] = image
+    labels = {path.stem: path for path in sorted(labels_dir.glob("*.txt")) if path.is_file()}
+    missing_labels = sorted(images.keys() - labels.keys())
+    missing_images = sorted(labels.keys() - images.keys())
+    if missing_labels or missing_images:
+        raise ValueError(
+            f"{split}: missing labels for {missing_labels}; missing images for {missing_images}"
+        )
+    if not images:
+        raise ValueError(f"{split}: raw split contains no image-label pairs")
+    return [(images[stem], labels[stem]) for stem in sorted(images)]
 
-    # 1. Aşama: Etiketleri dönüştür ve interim'e yaz
-    label_files = list(src_labels_dir.glob("*.txt"))
-    print(f"[{split.upper()}] {len(label_files)} label dönüştürülüyor...")
 
-    for src_file in label_files:
-        interim_file = interim_labels_dir / src_file.name
-        convert_one_label(src_file, interim_file)
+def _build_processed_split(
+    split: str, raw_dir: Path, interim_dir: Path, processed_dir: Path
+) -> dict:
+    pairs = _raw_pairs(raw_dir, split)
+    for image, label in pairs:
+        interim_label = interim_dir / split / "labels" / label.name
+        convert_one_label(label, interim_label)
+        image_target = processed_dir / split / "images" / image.name
+        label_target = processed_dir / split / "labels" / label.name
+        image_target.parent.mkdir(parents=True, exist_ok=True)
+        label_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(image, image_target)
+        shutil.copy2(interim_label, label_target)
+    return {"images": len(pairs), "labels": len(pairs)}
 
-    # 2. Aşama: Görselleri ve dönüştürülmüş etiketleri processed klasörüne taşı
-    copied_images = 0
-    for img_file in src_images_dir.glob("*.jpg"):
-        corresponding_label = interim_labels_dir / f"{img_file.stem}.txt"
-        if corresponding_label.exists():
-            shutil.copy2(img_file, proc_images_dir / img_file.name)
-            shutil.copy2(corresponding_label, proc_labels_dir / corresponding_label.name)
-            copied_images += 1
 
-    print(f"[{split.upper()}] {copied_images} görsel-etiket çifti 'data/processed/{split}' altına kopyalandı.")
-    return {"images": copied_images, "labels": len(label_files)}
+def _publish_outputs(replacements: list[tuple[Path, Path]], workspace: Path) -> None:
+    """Swap only the checked sibling output directories; restore them on failure."""
+    backups = []
+    published = []
+    try:
+        for index, (staged, target) in enumerate(replacements):
+            if target.parent != workspace.parent or staged.parent != workspace:
+                raise ValueError("Output replacement must stay inside the preparation directory")
+            if target.is_symlink():
+                raise ValueError(f"Output directory cannot be a symlink: {target}")
+            if target.exists():
+                backup = workspace / f"previous-{index}"
+                backups.append((backup, target))
+                target.replace(backup)
+            published.append((staged, target))
+            staged.replace(target)
+    except BaseException:
+        try:
+            for index, (staged, target) in enumerate(reversed(published)):
+                if not staged.exists() and target.exists():
+                    target.replace(workspace / f"failed-{index}")
+            for backup, target in reversed(backups):
+                if backup.exists():
+                    backup.replace(target)
+        except BaseException as recovery_error:
+            raise OutputRecoveryError(workspace) from recovery_error
+        raise
+
+
+def prepare_dataset(raw_dir: Path, interim_dir: Path, processed_dir: Path) -> dict:
+    """Build fresh outputs, publishing only after every split passes validation."""
+    if interim_dir.is_symlink() or processed_dir.is_symlink():
+        raise ValueError("Output directories cannot be symlinks")
+    raw_dir, interim_dir, processed_dir = (
+        Path(path).resolve() for path in (raw_dir, interim_dir, processed_dir)
+    )
+    if interim_dir == processed_dir or interim_dir.parent != processed_dir.parent:
+        raise ValueError("Interim and processed must be distinct sibling directories")
+    for output in (interim_dir, processed_dir):
+        if raw_dir == output or raw_dir in output.parents or output in raw_dir.parents:
+            raise ValueError("Output directories must not overlap raw data")
+        if output.exists() and not output.is_dir():
+            raise ValueError(f"Output path is not a directory: {output}")
+    output_parent = processed_dir.parent
+    output_parent.mkdir(parents=True, exist_ok=True)
+
+    workspace = Path(mkdtemp(prefix=".prepare-data-", dir=output_parent)).resolve()
+    preserve_workspace = False
+    try:
+        if workspace.parent != output_parent:
+            raise ValueError("Preparation workspace must stay inside the output parent")
+        staged_interim = workspace / "interim"
+        staged_processed = workspace / "processed"
+        total_counts = Counter()
+        stats_report = {"splits": {}, "total_class_distribution": {}}
+        for split in SPLITS:
+            split_info = _build_processed_split(split, raw_dir, staged_interim, staged_processed)
+            counts = count_classes(staged_processed / split / "labels")
+            total_counts += counts
+            stats_report["splits"][split] = {
+                "num_images": split_info["images"],
+                "class_distribution": {
+                    name: counts.get(class_id, 0) for class_id, name in enumerate(CLASS_NAMES)
+                },
+            }
+        stats_report["total_class_distribution"] = {
+            name: total_counts.get(class_id, 0) for class_id, name in enumerate(CLASS_NAMES)
+        }
+        (staged_processed / "data_stats.json").write_text(
+            json.dumps(stats_report, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        _publish_outputs(
+            [(staged_interim, interim_dir), (staged_processed, processed_dir)], workspace
+        )
+    except OutputRecoveryError:
+        preserve_workspace = True
+        raise
+    except BaseException as error:
+        # Keep any original outputs even if cancellation interrupts transaction bookkeeping.
+        preserve_workspace = True
+        if any(workspace.glob("previous-*")):
+            error.add_note(f"Original output backups preserved at {workspace}")
+        else:
+            preserve_workspace = False
+        raise
+    finally:
+        if not preserve_workspace:
+            if workspace.parent != output_parent or not workspace.name.startswith(".prepare-data-"):
+                raise ValueError("Refusing to clean a workspace outside the output parent")
+            shutil.rmtree(workspace)
+    return stats_report
 
 
 def main():
-    total_counts = Counter()
-    stats_report = {"splits": {}, "total_class_distribution": {}}
-
-    for split in SPLITS:
-        split_info = build_processed_split(split)
-        counts = count_classes(PROCESSED_DIR / split / "labels")
-        total_counts += counts
-
-        class_dist = {name: counts.get(cls_id, 0) for cls_id, name in enumerate(CLASS_NAMES)}
-        stats_report["splits"][split] = {
-            "num_images": split_info["images"],
-            "class_distribution": class_dist,
-        }
-
-        print(f"\n--- {split.upper()} ---")
-        for name, count in class_dist.items():
-            print(f"  {name:12s}: {count}")
-
-    print("\n--- TOPLAM ---")
-    for cls_id, name in enumerate(CLASS_NAMES):
-        total_val = total_counts.get(cls_id, 0)
-        stats_report["total_class_distribution"][name] = total_val
-        print(f"  {name:12s}: {total_val}")
-
-    # İstatistikleri JSON olarak kaydet (MLOps Denetlenebilirliği)
-    stats_path = PROCESSED_DIR / "data_stats.json"
-    with open(stats_path, "w", encoding="utf-8") as f:
-        json.dump(stats_report, f, indent=2, ensure_ascii=False)
-    print(f"\n[OK] Veri istatistik raporu kaydedildi: {stats_path}")
+    stats = prepare_dataset(RAW_DIR, INTERIM_DIR, PROCESSED_DIR)
+    for split, values in stats["splits"].items():
+        print(f"[{split.upper()}] {values['num_images']} image-label pairs prepared")
+    print(f"[OK] Data statistics saved to {PROCESSED_DIR / 'data_stats.json'}")
 
 
 if __name__ == "__main__":

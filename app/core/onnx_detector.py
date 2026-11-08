@@ -1,3 +1,4 @@
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -21,18 +22,25 @@ class ONNXDetector(BaseDetector):
         iou_threshold: float | None = None,
     ):
         with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f)
+            cfg = yaml.safe_load(f) or {}
 
         infer_cfg = cfg.get("inference", {})
 
         self.model_path = Path(model_path or infer_cfg.get("model_path", "models/pcb_defect_best.onnx"))
         self.metadata_path = Path(metadata_path or infer_cfg.get("metadata_path", "models/metadata.json"))
-        self.conf_threshold = conf_threshold or float(infer_cfg.get("conf_threshold", 0.25))
-        self.iou_threshold = iou_threshold or float(infer_cfg.get("iou_threshold", 0.45))
+        self.conf_threshold = float(infer_cfg.get("conf_threshold", 0.25) if conf_threshold is None else conf_threshold)
+        self.iou_threshold = float(infer_cfg.get("iou_threshold", 0.45) if iou_threshold is None else iou_threshold)
+        if not 0.0 <= self.conf_threshold <= 1.0 or not 0.0 <= self.iou_threshold <= 1.0:
+            raise ValueError("Guven ve IoU esikleri 0 ile 1 arasinda olmali.")
 
         if not self.model_path.exists():
             raise FileNotFoundError(f"Model dosyasi bulunamadi: {self.model_path}")
 
+        self.metadata = self._load_metadata()
+        self._validate_model_hash()
+        self.classes = self.metadata["classes"]
+        self.model_name = self.metadata["model_name"]
+        self.model_version = self.metadata["version"]
         self.session = ort.InferenceSession(
             str(self.model_path),
             providers=["CPUExecutionProvider"],
@@ -42,14 +50,32 @@ class ONNXDetector(BaseDetector):
         self.input_shape = self.session.get_inputs()[0].shape
         self.imgsz = self.input_shape[2] if len(self.input_shape) >= 4 else 640
 
-        self.classes = self._load_metadata()
+        self.providers = self.session.get_providers()
+        self.device = self.providers[0].removesuffix("ExecutionProvider").lower()
 
-    def _load_metadata(self) -> list[str]:
-        if self.metadata_path.exists():
-            with open(self.metadata_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return data.get("classes", [])
-        return ["open", "short", "mousebite", "spur", "copper", "pin-hole"]
+    def _load_metadata(self) -> dict[str, Any]:
+        with open(self.metadata_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            raise ValueError("Model metadata bir JSON nesnesi olmali.")
+        classes = data.get("classes")
+        if not isinstance(classes, list) or not classes or not all(isinstance(name, str) and name for name in classes):
+            raise ValueError("Model metadata classes alani bos olmayan sinif isimleri icermeli.")
+        for key in ("model_name", "version"):
+            if not isinstance(data.get(key), str) or not data[key]:
+                raise ValueError(f"Model metadata {key} alani bos olmayan bir metin olmali.")
+        return data
+
+    def _validate_model_hash(self) -> None:
+        expected = self.metadata.get("model_sha256")
+        if expected is None:
+            return
+        if not isinstance(expected, str) or len(expected) != 64 or any(char not in "0123456789abcdef" for char in expected.lower()):
+            raise ValueError("Model metadata model_sha256 alani gecerli bir SHA256 olmali.")
+        with self.model_path.open("rb") as model_file:
+            actual = hashlib.file_digest(model_file, "sha256").hexdigest()
+        if actual != expected.lower():
+            raise ValueError("ONNX model SHA256 degeri metadata ile eslesmiyor.")
 
     def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, float, float, float]:
         orig_h, orig_w = image.shape[:2]
@@ -111,12 +137,18 @@ class ONNXDetector(BaseDetector):
         if not boxes:
             return []
 
-        indices = cv2.dnn.NMSBoxes(
-            boxes,
-            confidences,
-            score_threshold=self.conf_threshold,
-            nms_threshold=self.iou_threshold,
-        )
+        # Farkli kusur siniflari birbirlerinin kutularini bastirmamali.
+        indices = []
+        for class_id in sorted(set(class_ids)):
+            candidates = [i for i, value in enumerate(class_ids) if value == class_id]
+            kept = cv2.dnn.NMSBoxes(
+                [boxes[i] for i in candidates],
+                [confidences[i] for i in candidates],
+                score_threshold=self.conf_threshold,
+                nms_threshold=self.iou_threshold,
+            )
+            indices.extend(candidates[int(i)] for i in np.asarray(kept).reshape(-1))
+        indices.sort(key=lambda i: confidences[i], reverse=True)
 
         detections = []
         for idx in indices:

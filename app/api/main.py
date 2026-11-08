@@ -21,10 +21,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.detector = ModelLoader.load_detector(
         model_path=settings.MODEL_PATH,
         config_path=str(settings.config_path),
-        fallback_dummy=True,
+        metadata_path=settings.METADATA_PATH,
+        conf_threshold=settings.CONF_THRESHOLD,
+        iou_threshold=settings.IOU_THRESHOLD,
+        fallback_dummy=False,
     )
-    yield
-    logger.info("PCB Defect Detection API kapatiliyor...")
+    try:
+        yield
+    finally:
+        app.state.detector = None
+        logger.info("PCB Defect Detection API kapatiliyor...")
 
 
 app = FastAPI(

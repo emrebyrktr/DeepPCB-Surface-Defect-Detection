@@ -27,6 +27,10 @@ class Settings:
         self.CONF_THRESHOLD: float = float(os.getenv("CONF_THRESHOLD", infer_cfg.get("conf_threshold", 0.30)))
         self.IOU_THRESHOLD: float = float(os.getenv("IOU_THRESHOLD", infer_cfg.get("iou_threshold", 0.45)))
         self.DEVICE: str = os.getenv("DEVICE", infer_cfg.get("device", "cpu"))
+        self.MAX_UPLOAD_BYTES: int = int(os.getenv("MAX_UPLOAD_BYTES", infer_cfg.get("max_upload_bytes", 10 * 1024 * 1024)))
+        self.MAX_IMAGE_PIXELS: int = int(os.getenv("MAX_IMAGE_PIXELS", infer_cfg.get("max_image_pixels", 25_000_000)))
+        if self.MAX_UPLOAD_BYTES <= 0 or self.MAX_IMAGE_PIXELS <= 0:
+            raise ValueError("Gorsel boyut limitleri pozitif olmali.")
 
         # CORS
         self.CORS_ORIGINS: list[str] = ["*"]

@@ -1,10 +1,12 @@
-import shutil
-import logging
-from pathlib import Path
-from typing import Any, Dict
 import argparse
+import logging
+import shutil
+from collections.abc import Callable
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Any, Dict
+
 import yaml
-from ultralytics import YOLO
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -15,14 +17,20 @@ def load_config(config_path: str = "configs/config.yaml") -> Dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def train_model(config_path: str = "configs/config.yaml") -> Any:
+def train_model(
+    config_path: str = "configs/config.yaml", *, model_factory: Callable[..., Any] | None = None
+) -> Any:
     config = load_config(config_path)
 
     model_cfg = config.get("model", {})
     train_cfg = config.get("train", {})
     paths_cfg = config.get("paths", {})
 
-    model = YOLO(model_cfg.get("type", "yolov8n.pt"))
+    if model_factory is None:
+        from ultralytics import YOLO
+
+        model_factory = YOLO
+    model = model_factory(model_cfg.get("type", "yolov8n.pt"))
 
     project_dir = paths_cfg.get("project_dir", "runs/train")
     experiment_name = paths_cfg.get("experiment_name", "pcb_defect")
@@ -43,12 +51,26 @@ def train_model(config_path: str = "configs/config.yaml") -> Any:
         verbose=True,
     )
 
-    best_weight_path = Path(project_dir) / experiment_name / "weights" / "best.pt"
-    if best_weight_path.exists():
-        Path(output_model_dir).mkdir(parents=True, exist_ok=True)
-        target_path = Path(output_model_dir) / "pcb_defect_best.pt"
-        shutil.copy(best_weight_path, target_path)
-        logger.info(f"Model saved to {target_path}")
+    checkpoint = getattr(getattr(model, "trainer", None), "best", None)
+    if checkpoint is None or not Path(checkpoint).is_file():
+        raise FileNotFoundError(f"Training did not produce a best checkpoint: {checkpoint!r}")
+
+    best_weight_path = Path(checkpoint)
+    target_path = Path(output_model_dir) / "pcb_defect_best.pt"
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    if best_weight_path.resolve() != target_path.resolve():
+        temporary_path = None
+        try:
+            with NamedTemporaryFile(
+                dir=target_path.parent, prefix=f".{target_path.name}-", suffix=".tmp", delete=False
+            ) as temporary_file:
+                temporary_path = Path(temporary_file.name)
+            shutil.copy2(best_weight_path, temporary_path)
+            temporary_path.replace(target_path)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+    logger.info("Model saved to %s", target_path)
 
     return model
 

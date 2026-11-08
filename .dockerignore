@@ -5,6 +5,9 @@ env/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.ruff_cache/
+.env
+.env.*
 
 # Git ve DVC
 .git/
@@ -17,9 +20,9 @@ __pycache__/
 data/
 runs/
 ml/
-notebooks/
 scripts/
 tests/
+reports/
 models/*.pt
 
 # Deney takibi ve loglar

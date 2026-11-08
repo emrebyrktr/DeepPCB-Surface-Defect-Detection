@@ -1,12 +1,22 @@
 -r requirements.txt
+
+# Training and experiments
 ultralytics
 torch
 torchvision
 mlflow
-dvc
-pytest
-httpx
+dvc[gdrive]
+onnx==1.23.2
+onnxslim==0.1.99
+
+# Tests and checks
+pytest==9.2.0
+httpx==0.28.1
+ruff==0.17.4
+locust
+
+# Development tools
 jupyter
 matplotlib
 streamlit
-locust
+requests

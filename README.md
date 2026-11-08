@@ -1,4 +1,4 @@
-# 🔬 Industrial PCB Defect Detection — End-to-End MLOps Pipeline
+# 🔬 PCB Kusur Tespiti ve MLOps
 
 [![CI Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -8,10 +8,9 @@
 [![DVC](https://img.shields.io/badge/DVC-Data_Versioned-945DD6?logo=dvc&logoColor=white)](https://dvc.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-Tracking-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
 
-Bu proje; endüstriyel baskılı devre kartları (PCB) üzerindeki mikro üretim hatalarını tespit eden, ham veriden canlı Docker konteynerine kadar **9 aşamalı tam döngü (end-to-end) bir MLOps hattıdır**.
+Bu proje, endüstriyel baskılı devre kartları (PCB) üzerindeki altı kusur sınıfını YOLO ile tespit eder. Veri hazırlama, eğitim, ONNX paketleme, değerlendirme ve FastAPI servisini bir araya getirir. Veri ve modeller DVC + Google Drive ile sürümlenir; değerlendirme sonuçları MLflow ile yerelde kaydedilir.
 
-<!-- ✏️ DÜZENLEME ALANI: Varsa Swagger arayüzü veya tespit ekran görüntüsünü ekleyin -->
-<!-- ![PCB Defect Detection Demo](docs/images/demo.png) -->
+Odak: kolay çalıştırılabilen, test edilmiş ve modelin sınırlarını gösteren bir portfolyo projesi. Aşağıdaki benchmark değerleri kayıtlı önceki koşulara aittir; her kod değişikliğinde yeniden ölçülmüş sonuçlar değildir.
 
 ---
 
@@ -30,11 +29,11 @@ DeepPCB veri seti (1500 çift görsel, 10.000+ anotasyon) kullanılarak, insan g
 
 ## 🏗️ MLOps Mimari Özellikleri
 
-* **Veri Kalite Kontrolü & Sızıntı Önleme:** Ham VOC etiketleri normalize YOLO formatına çevrilirken `clamp(0.0, 1.0)` ile sınır dışı koordinatlar filtrelendi. Train / Valid / Test kümesi baştan bağımsız izole edildi.
-* **Veri & Model Versiyonlama (DVC + Google Drive):** Büyük veri setleri ve ikili modeller Git'i şişirmemek için DVC uzak deposunda (Google Drive) hash işaretçileri (`.dvc`) ile kilitlendi.
-* **Kapsamlı Soykütüğü (Lineage & Tracking):** Her eğitim koşusuna MLflow üzerinde `dvc_data_hash`, `git_commit`, donanım bilgisi (`device: cuda/cpu`) ve ağırlık dosyası `model_sha256` parmak izi mühürlendi.
+* **Veri hazırlama:** Ham etiketler YOLO formatına çevrilir; eksik görsel/etiket eşleşmesi ve geçersiz kutular hata verir. Hazır train/valid/test bölümleri korunur. Kümeler arasında birebir aynı görsel bulunmadığı kontrol edilmiştir; benzer kart grupları düzeyindeki sızıntı ayrıca incelenmelidir.
+* **Veri ve model sürümleme:** DVC + Google Drive, büyük veri ve model dosyalarını saklar; Git'te `data/raw.dvc`, `dvc.yaml` ve `dvc.lock` tutulur.
+* **Yerel deney takibi:** Değerlendirme metrikleri, model hash'i ve kaydedilmiş veri sürümü MLflow'a yazılır. Eğitim koşularının otomatik MLflow bağlantısı henüz tamamlanmamıştır.
 * **Hafif Çıkarım (ONNX Runtime):** Canlı serviste hantal PyTorch / Torchvision bağımlılığı kaldırıldı; C++ NMS ve ONNX Runtime motoru ile sadece CPU üzerinde **~250 ms** çıkarım süresi elde edildi.
-* **Üretim Tipi Docker Konteyneri:** `python:3.11-slim` tabanlı, katman önbellekli, non-root `appuser` güvenlikli ve otomatik canlılık denetimli (`HEALTHCHECK`) Docker paketi hazırlandı (**Sıkıştırılmış boyut: sadece 186 MB**).
+* **Docker ile çalıştırma:** `python:3.11-slim` tabanlı imaj, non-root `appuser` ve `HEALTHCHECK` içerir. Model ve metadata eksik veya geçersizse API başlangıcı durur.
 
 ---
 
@@ -69,9 +68,9 @@ Canlı Docker konteyneri üzerinde `tests/locustfile.py` ile 20 eşzamanlı sana
 | **Genel Toplam (Aggregated)** | **100** | **%0.00** | **6,300** | **11,000** | **6,055** | **1,114 / 11,714** | **3.2 req/s** |
 
 #### 📌 Yük Testi Çıkarımları:
-* **Kararlılık (Zero Failure):** Ağır nesne tespiti yükü altında 100 isteğin tamamı hatasız yanıtlandı; bellek taşması (OOM) veya servis kesintisi yaşanmadı.
-* **CPU Throughput:** Tek konteyner ve CPU üzerinde saniyede **3.2 istek (RPS)** seviyesinde görsel işleme kapasitesine ulaşıldı.
-* **Ölçekleme Önerisi:** Üretim bandında daha düşük gecikme (<500 ms) hedeflendiğinde; GPU hızlandırma (TensorRT) veya Kubernetes (K8s) ile yatay çoğaltma (horizontal replica scaling) uygulanabilir.
+* Bu kısa koşuda 100 istekte hata görülmedi.
+* Toplam trafik **3.2 istek/sn**, tahmin trafiği **3.0 istek/sn** olarak kaydedildi.
+* Yük altında tahmin p95 süresi **11 saniye** oldu; tekil görseldeki yaklaşık 330 ms bu yük için garanti değildir.
 
 Yük testini yerel ortamınızda interaktif web paneliyle çalıştırmak için:
 ```powershell
@@ -89,14 +88,15 @@ DataProcess/
 ├── .dvcignore
 ├── .gitignore
 ├── Dockerfile
+├── dvc.yaml
+├── dvc.lock
+├── pyproject.toml
 ├── requirements-dev.txt
 ├── requirements.txt
 ├── configs/
 │   ├── config.yaml
 │   └── data.yaml
 ├── data/
-│   ├── interim.dvc
-│   ├── processed.dvc
 │   └── raw.dvc
 ├── ml/
 │   ├── evaluate.py
@@ -106,7 +106,6 @@ DataProcess/
 │   └── train.py
 ├── models/
 │   ├── metadata.json
-│   ├── models.dvc
 │   └── pcb_defect_best.onnx
 ├── app/
 │   ├── api/
@@ -118,15 +117,13 @@ DataProcess/
 │   │   └── v1/
 │   │       ├── endpoints/
 │   │       │   ├── health.py
-│   │       │   ├── monitoring.py
 │   │       │   └── predict.py
 │   │       └── router.py
 │   ├── core/
 │   │   ├── base_detector.py
 │   │   ├── config.py
 │   │   ├── dummy_detector.py
-│   │   ├── onnx_detector.py
-│   │   └── security.py
+│   │   └── onnx_detector.py
 │   ├── services/
 │   │   ├── feature_pipeline.py
 │   │   ├── inference_service.py
@@ -135,16 +132,19 @@ DataProcess/
 │   │   └── app.py
 │   └── utils/
 │       ├── config_loader.py
-│       ├── decorators.py
-│       ├── helpers.py
-│       ├── logger.py
-│       └── validators.py
+│       └── logger.py
+├── scripts/
+│   ├── check_distribution.py
+│   ├── create_ci_model.py
+│   └── smoke_api.py
 └── tests/
-    ├── load/
-    │   ├── benchmark_stats.csv
-    │   └── locustfile.py
+    ├── locustfile.py
     ├── test_api.py
-    └── test_config.py
+    ├── test_config.py
+    ├── test_detector.py
+    ├── test_export_package.py
+    ├── test_tracking.py
+    └── test_training_pipeline.py
 ```
 
 ---
@@ -152,6 +152,8 @@ DataProcess/
 ## 🚀 Hızlı Başlangıç
 
 ### Seçenek 1: Docker ile Çalıştırma (Tavsiye Edilen)
+
+Derlemeden önce `models/pcb_defect_best.onnx` ve `models/metadata.json` bulunmalıdır. Yeni bir checkout'ta DVC erişimini yapılandırıp `dvc pull` çalıştırın. CI fixture modeli geliştirme testleri içindir; PCB tahmini için eğitilmiş model paketini kullanın.
 
 ```powershell
 # 1. Docker imajını derleyin
@@ -181,7 +183,7 @@ uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
 streamlit run app/ui/app.py
 
 # Yük testini başlatın (Locust)
-locust -f tests/load/locustfile.py --host http://localhost:8000
+locust -f tests/locustfile.py --host http://localhost:8000
 ```
 
 ---
@@ -236,15 +238,29 @@ curl -X POST "http://localhost:8000/predict" \
 Projedeki yapılandırma bütünlüğü ve API uç noktaları `pytest` ile otomatik test edilir:
 
 ```powershell
-pytest tests/ -v
+python -m pytest tests/ -v
 ```
-*(11 birim ve entegrasyon testinin tamamı yeşildir).*
+Normal testler açıkça seçilmiş test doubles kullanır; GPU veya eğitim çalıştırılması gerektirmez. Geliştirme ve test araçları `pip install -r requirements-dev.txt` ile kurulur. CI yalnız servis ve test paketlerini kurar.
+
+Mevcut ONNX modeli ve metadata ile gerçek servis başlangıcını ayrıca doğrulamak için:
+
+```powershell
+$env:RUN_MODEL_INTEGRATION = "1"
+python -m pytest tests/test_detector.py -m integration -v
+Remove-Item Env:RUN_MODEL_INTEGRATION
+```
+
+CI, boş ONNX yerine geçerli bir test modeliyle konteyner açılışını ve tahmini kontrol eder; bu modelin PCB başarımını ölçmez. Model dosyası veya metadata eksik/geçersizse API başlangıcı hata verir.
+
+`dvc repro` eğitim başlatabilir. Kaynak kod ve komutlar değiştiğinde eski `dvc.lock` geçmiş çıktının kaydı olarak korunur; pipeline yeniden çalıştırılıp doğrulanmadan hash'ler elle değiştirilmez.
 
 ---
 
 ## 📦 Veri ve Model Ağırlıklarını İndirme (DVC)
 
 Eğitim verilerine ve model ağırlıklarına erişmek için DVC ile uzaktan çekebilirsiniz:
+
+Google Drive erişim ayarları Git'in yok saydığı `.dvc/config.local` içinde tutulur. Ortak `.dvc/config` yalnız remote tanımını içerir; kendi erişim bilgilerinizi yerel yapılandırmaya ekleyin.
 
 ```powershell
 dvc pull

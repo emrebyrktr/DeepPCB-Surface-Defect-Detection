@@ -1,7 +1,0 @@
-# Notebooks
-> Bu klasör EDA, preprocessing denemeleri ve model karşılaştırmaları için kullanılır.
-
-- `01_eda.ipynb` — Veri keşfi, sınıf dağılımı, görüntü boyutları
-- `02_preprocessing.ipynb` — Augmentation / transform denemeleri
-- `03_model_comparison.ipynb` — Farklı model sonuçlarının karşılaştırması
-

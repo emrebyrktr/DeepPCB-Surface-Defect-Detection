@@ -10,6 +10,9 @@ class DummyDetector(BaseDetector):
 
     def __init__(self, classes: list[str] | None = None):
         self.classes = classes or ["open", "short", "mousebite", "spur", "copper", "pin-hole"]
+        self.model_name = "DummyDetector"
+        self.model_version = "test"
+        self.device = "cpu"
 
     def preprocess(self, image: np.ndarray) -> tuple[np.ndarray, float, float, float]:
         return np.zeros((1, 3, 640, 640), dtype=np.float32), 1.0, 0.0, 0.0

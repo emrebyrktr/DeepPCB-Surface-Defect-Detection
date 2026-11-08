@@ -1,0 +1,116 @@
+# Step 1: download and verify the real model. Publishing is added next.
+name: CD Pipeline
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pcb-production
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  release:
+    name: Verify release model
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Download and verify real model
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p models
+          gh release download model-v1.0.0 \
+            --pattern pcb_defect_best.onnx \
+            --pattern metadata.json \
+            --dir models
+          printf '%s\n' \
+            'b58d2ba6dd549bab6a11e683a2f4dcc925a067103560973a2431a8f579d3aef6  models/pcb_defect_best.onnx' \
+            '66d3e282b49da60701de50f6388dc23eed86bd311e0df89b160c4b79ce78826b  models/metadata.json' \
+            | sha256sum --check
+
+      - name: Build real model image
+        run: docker buildx build --platform linux/amd64 --load -t pcb-defect-api:release .
+
+      - name: Check real inference
+        run: |
+          docker run -d --name pcb-release -p 127.0.0.1:8000:8000 pcb-defect-api:release
+          python3 scripts/smoke_api.py --expected-model DeepPCB-YOLOv8 --timeout 90
+
+      - name: Show logs and clean up
+        if: always()
+        run: |
+          docker logs pcb-release || true
+          docker rm -f pcb-release || true
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push tested image
+        id: publish
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          image="emrebyrktr/pcb-defect-api:sha-${TESTED_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker tag pcb-defect-api:release "$image"
+          docker push "$image"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+
+      - name: Trigger Render deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          PUBLISHED_IMAGE: ${{ steps.publish.outputs.image }}
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          if [ "$current_sha" != "$TESTED_SHA" ]; then
+            echo "Deployment skipped: main has a newer commit." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          digest="$(docker buildx imagetools inspect "$PUBLISHED_IMAGE" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+
+          docker tag pcb-defect-api:release emrebyrktr/pcb-defect-api:demo
+          docker push emrebyrktr/pcb-defect-api:demo
+
+          image_url="docker.io/emrebyrktr/pcb-defect-api@$digest"
+          status="$(curl --silent --show-error \
+            --connect-timeout 10 --max-time 30 \
+            --output "$RUNNER_TEMP/render-response.json" \
+            --write-out '%{http_code}' --get \
+            --data-urlencode "imgURL=$image_url" \
+            "$RENDER_DEPLOY_HOOK")"
+
+          case "$status" in
+            200|202)
+              printf 'Render deployment requested (HTTP %s).\n\nImage: `%s`\n\nConfirm Live in the Render dashboard.\n' \
+                "$status" "$image_url" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            *)
+              echo "Render deploy request failed: HTTP $status."
+              exit 1
+              ;;
+          esac

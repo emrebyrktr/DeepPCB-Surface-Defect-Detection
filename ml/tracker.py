@@ -1,93 +1,141 @@
+"""Lightweight provenance helpers and optional MLflow experiment tracking."""
+
 import hashlib
-import subprocess
+import importlib
 import platform
+import subprocess
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Any
+
 import yaml
-import torch
-import mlflow
+
+
+def file_sha256(filepath: str | Path) -> str:
+    path = Path(filepath)
+    if not path.is_file():
+        return "not_found"
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def git_state() -> dict[str, str]:
+    """Identify the checkout without presenting dirty code as a reproducible commit."""
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, timeout=5
+        ).decode("utf-8").strip()
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=normal"],
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+        return {"git_commit": commit, "git_dirty": str(bool(status.strip())).lower()}
+    except (OSError, subprocess.SubprocessError):
+        return {"git_commit": "unknown", "git_dirty": "unknown"}
+
+
+def dvc_data_hash(
+    lock_file: str | Path = "dvc.lock",
+    dvc_file: str | Path = "data/processed.dvc",
+    data_path: str = "data/processed",
+) -> str:
+    """Read the recorded processed-data snapshot, not uncommitted dataset changes."""
+    try:
+        with Path(lock_file).open(encoding="utf-8") as stream:
+            locked = yaml.safe_load(stream) or {}
+        for stage in locked.get("stages", {}).values():
+            for output in stage.get("outs", []):
+                output_path = str(output.get("path", "")).replace("\\", "/")
+                if output_path.removeprefix("./").rstrip("/") == data_path.rstrip("/"):
+                    algorithm = output.get("hash", "md5")
+                    return str(output.get(algorithm, "unknown"))
+    except (OSError, yaml.YAMLError, AttributeError, TypeError):
+        pass
+    try:
+        with Path(dvc_file).open(encoding="utf-8") as stream:
+            pointer = yaml.safe_load(stream) or {}
+        output = pointer.get("outs", [{}])[0]
+        return str(output.get(output.get("hash", "md5"), "unknown"))
+    except FileNotFoundError:
+        return "not_found"
+    except (OSError, yaml.YAMLError, AttributeError, IndexError, TypeError):
+        return "unknown"
+
+
+def provenance() -> dict[str, str]:
+    return {**git_state(), "dvc_data_hash": dvc_data_hash()}
+
 
 class MLflowTracker:
     def __init__(
         self,
         experiment_name: str = "DeepPCB",
-        tracking_uri: Optional[str] = None,
+        tracking_uri: str | None = None,
+        client: Any | None = None,
     ):
+        # Hashing and export utilities need no Torch or MLflow installation.
+        self.mlflow = client if client is not None else importlib.import_module("mlflow")
         if tracking_uri:
-            uri_str = str(tracking_uri)
-            if uri_str.startswith(("http://", "https://", "file://", "sqlite://")):
-                resolved_uri = uri_str
-            else:
-                resolved_uri = Path(tracking_uri).resolve().as_uri()
-            mlflow.set_tracking_uri(resolved_uri)
-        mlflow.set_experiment(experiment_name)
+            uri = str(tracking_uri)
+            if not uri.startswith(("http://", "https://", "file://", "sqlite://")):
+                uri = Path(tracking_uri).resolve().as_uri()
+            self.mlflow.set_tracking_uri(uri)
+        self.mlflow.set_experiment(experiment_name)
 
     def _get_git_commit(self) -> str:
-        try:
-            return subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
-            ).decode("utf-8").strip()
-        except Exception:
-            return "unknown"
+        return git_state()["git_commit"]
 
     def _get_dvc_hash(self, dvc_file: str = "data/processed.dvc") -> str:
-        dvc_path = Path(dvc_file)
-        if dvc_path.exists():
-            try:
-                with open(dvc_path, "r", encoding="utf-8") as f:
-                    content = yaml.safe_load(f)
-                return content.get("outs", [{}])[0].get("md5", "unknown")
-            except Exception:
-                return "unknown"
-        return "not_found"
+        return dvc_data_hash(dvc_file=dvc_file)
 
     def _get_file_sha256(self, filepath: str) -> str:
-        file_path = Path(filepath)
-        if not file_path.exists():
-            return "not_found"
-        sha256 = hashlib.sha256()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(65536), b""):
-                sha256.update(chunk)
-        return sha256.hexdigest()
+        return file_sha256(filepath)
 
     def log_experiment(
         self,
         run_name: str,
-        params: Dict[str, Any],
-        metrics: Dict[str, float],
-        artifacts: Optional[List[str]] = None,
-        model_path: Optional[str] = None,
-        extra_tags: Optional[Dict[str, str]] = None,
-    ):
+        params: dict[str, Any],
+        metrics: dict[str, float],
+        artifacts: list[str] | None = None,
+        model_path: str | None = None,
+        extra_tags: dict[str, str] | None = None,
+        actual_device: str | None = None,
+    ) -> str:
+        try:
+            torch_version = version("torch")
+        except PackageNotFoundError:
+            torch_version = "not_installed"
         tags = {
-            "dvc_data_hash": self._get_dvc_hash(),
-            "git_commit": self._get_git_commit(),
+            **provenance(),
             "os": platform.platform(),
             "python_version": platform.python_version(),
-            "torch_version": torch.__version__,
-            "device": "cuda" if torch.cuda.is_available() else "cpu",
+            "torch_version": torch_version,
+            # GPU availability does not prove that this run used the GPU.
+            "device": str(actual_device or params.get("device") or "unknown"),
         }
-
         if model_path:
-            tags["model_sha256"] = self._get_file_sha256(model_path)
-
+            tags["model_sha256"] = file_sha256(model_path)
         if extra_tags:
             tags.update(extra_tags)
 
-        with mlflow.start_run(run_name=run_name) as run:
-            mlflow.set_tags(tags)
-            mlflow.log_params(params)
-            mlflow.log_metrics(metrics)
+        with self.mlflow.start_run(run_name=run_name) as run:
+            self.mlflow.set_tags(tags)
+            self.mlflow.log_params(params)
+            self.mlflow.log_metrics(metrics)
+            for item in artifacts or []:
+                path = Path(item)
+                if path.is_dir():
+                    self.mlflow.log_artifacts(str(path), artifact_path=path.name)
+                elif path.is_file():
+                    self.mlflow.log_artifact(str(path))
+            if model_path and Path(model_path).is_file():
+                self.mlflow.log_artifact(str(Path(model_path)), artifact_path="weights")
+            return str(run.info.run_id)
 
-            if artifacts:
-                for item in artifacts:
-                    artifact_path = Path(item)
-                    if artifact_path.exists():
-                        if artifact_path.is_dir():
-                            mlflow.log_artifacts(str(artifact_path), artifact_path=artifact_path.name)
-                        else:
-                            mlflow.log_artifact(str(artifact_path))
-
-            if model_path and Path(model_path).exists():
-                mlflow.log_artifact(str(Path(model_path)), artifact_path="weights")
+    def log_report(self, run_id: str, report_path: str | Path) -> None:
+        """Attach a report containing its own run identity to the completed run."""
+        self.mlflow.tracking.MlflowClient().log_artifact(run_id, str(report_path))

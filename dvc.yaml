@@ -1,6 +1,6 @@
 stages:
   prepare_data:
-    cmd: python ml/prepare_data.py
+    cmd: python -m ml.prepare_data
     deps:
       - data/raw
       - ml/prepare_data.py
@@ -8,7 +8,7 @@ stages:
       - data/processed
 
   train:
-    cmd: python ml/train.py --config configs/config.yaml
+    cmd: python -m ml.train --config configs/config.yaml
     deps:
       - configs/config.yaml
       - configs/data.yaml
@@ -18,17 +18,19 @@ stages:
       - models/pcb_defect_best.pt
 
   export:
-    cmd: python ml/export_package.py --model models/pcb_defect_best.pt
+    cmd: python -m ml.export_package --model models/pcb_defect_best.pt --config configs/config.yaml
     deps:
       - configs/config.yaml
+      - app/core/onnx_detector.py
       - ml/export_package.py
+      - ml/tracker.py
       - models/pcb_defect_best.pt
     outs:
       - models/metadata.json
       - models/pcb_defect_best.onnx
 
   evaluate:
-    cmd: python ml/evaluate.py --model models/pcb_defect_best.onnx --config configs/config.yaml
+    cmd: python -m ml.evaluate --model models/pcb_defect_best.onnx --config configs/config.yaml --output reports/metrics.json
     deps:
       - configs/config.yaml
       - configs/data.yaml
@@ -36,4 +38,8 @@ stages:
       - ml/evaluate.py
       - ml/tracker.py
       - models/pcb_defect_best.onnx
+      - models/metadata.json
+    metrics:
+      - reports/metrics.json:
+          cache: false
 
