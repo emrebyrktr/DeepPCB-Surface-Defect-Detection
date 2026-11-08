@@ -41,6 +41,7 @@ Thumbs.db
 
 # Private notes and credentials
 NOTES.md
+YAPILACAKLAR.md
 MLOPS_CHECKLIST.md
 gdrive_creds.json
 pcb_mlflow/
