@@ -1,5 +1,10 @@
 # PCB Defect Detection and MLOps
-
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-1.31-005CED?logo=onnx&logoColor=white)](https://onnxruntime.ai/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![DVC](https://img.shields.io/badge/DVC-Data_Versioned-945DD6?logo=dvc&logoColor=white)](https://dvc.org/)
+[![MLflow](https://img.shields.io/badge/MLflow-Tracking-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![CI Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yml)
 [![CD Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yml)
 
@@ -11,7 +16,7 @@ The main goal is to take a trained model beyond a training notebook: package its
 
 ## Dataset and task
 
-The model uses the [DeepPCB dataset](https://github.com/tangsanli5201/DeepPCB) and predicts bounding boxes, class labels, and confidence scores for six defect classes:
+The model uses the [DeepPCB dataset]([https://github.com/tangsanli5201/DeepPCB](https://www.kaggle.com/datasets/arnablaha05/deep-pcb/data)) and predicts bounding boxes, class labels, and confidence scores for six defect classes:
 
 | Class | Defect |
 |---|---|
