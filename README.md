@@ -5,8 +5,8 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![DVC](https://img.shields.io/badge/DVC-Data_Versioned-945DD6?logo=dvc&logoColor=white)](https://dvc.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-Tracking-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
-[![CI Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yml)
-[![CD Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yml)
+[![CI Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yaml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yaml)
+[![CD Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yaml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yaml)
 
 An object detector for six types of printed circuit board defects, served through a CPU-based inference API. The repository covers dataset preparation, YOLOv8 training, evaluation, ONNX export, and automated Docker deployment.
 
@@ -57,7 +57,7 @@ Training and serving have separate dependencies. The API image runs ONNX Runtime
 
 ```text
 .
-├── .github/workflows/   # ci.yml, cd.yml
+├── .github/workflows/   # ci.yaml, cd.yaml
 ├── app/
 │   ├── api/             # FastAPI endpoints and response schemas
 │   ├── core/            # ONNX detector and configuration
@@ -262,8 +262,8 @@ Push to main
   → request a Render deployment by digest for the current main commit
 ```
 
-- [ci.yml](.github/workflows/ci.yml) runs on pushes and pull requests to `main`. Its small ONNX fixture checks the serving code.
-- [cd.yml](.github/workflows/cd.yml) runs after successful CI for a `main` push from the same repository. It downloads the actual model from a GitHub release; the CI fixture is not published.
+- [ci.yaml](.github/workflows/ci.yaml) runs on pushes and pull requests to `main`. Its small ONNX fixture checks the serving code.
+- [cd.yaml](.github/workflows/cd.yaml) runs after successful CI for a `main` push from the same repository. It downloads the actual model from a GitHub release; the CI fixture is not published.
 - Each run creates an image tag containing the tested commit SHA and run identifiers. The current release candidate also receives the `demo` tag. Render is given the image digest.
 - Release runs are queued. If the tested commit is no longer the tip of `main`, the deployment request is skipped.
 - Failed model verification or inference checks stop publication. A successful hook request and a `Live` deployment are checked separately.
@@ -276,7 +276,7 @@ A new model release requires updating its release tag and both package hashes in
 
 The API logs request methods, paths, HTTP statuses and durations, and exposes Prometheus metrics at `/metrics`.
 
-- [Prometheus configuration](configs/prometheus.yml): collects metrics every 15 seconds.
+- [Prometheus configuration](configs/prometheus.yaml): collects metrics every 15 seconds.
 - [Grafana dashboard](configs/grafana_dashboard.json): shows request count, mean response time in milliseconds, and HTTP 4xx/5xx percentage for `POST /api/v1/predict`.
 
 The panels show cumulative measurements since API startup.
