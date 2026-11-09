@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.api.dependencies import get_inference_service
-from app.api.monitoring import DETECTIONS_TOTAL
+from app.api.monitoring import DETECTION_CONFIDENCE, DETECTIONS_TOTAL
 from app.api.schemas.response import DetectionResponse
 from app.services.inference_service import InferenceService
 
@@ -25,6 +25,7 @@ async def predict_defects(
     )
     for detection in response.detections:
         DETECTIONS_TOTAL.labels(class_name=detection.class_name).inc()
+        DETECTION_CONFIDENCE.observe(detection.confidence)
 
     return response
 

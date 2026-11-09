@@ -1,7 +1,7 @@
 from time import perf_counter
 
 from fastapi import FastAPI, Request
-from prometheus_client import Counter
+from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.utils.logger import setup_logger
@@ -11,6 +11,11 @@ DETECTIONS_TOTAL = Counter(
     "pcb_detections_total",
     "Total number of detected PCB defects by class.",
     ["class_name"],
+)
+DETECTION_CONFIDENCE = Histogram(
+    "pcb_detection_confidence",
+    "Confidence scores of detected PCB defects.",
+    buckets=(0.25, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
 )
 
 def setup_monitoring(app: FastAPI) -> None:
