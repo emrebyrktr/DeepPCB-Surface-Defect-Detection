@@ -271,3 +271,20 @@ Push to main
 Required GitHub Actions repository secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `RENDER_DEPLOY_HOOK`. Secret values are kept out of workflow files.
 
 A new model release requires updating its release tag and both package hashes in the CD workflow. Model versions and application/image versions are tracked separately.
+
+## Local monitoring
+
+The API logs request methods, paths, HTTP statuses and durations, and exposes Prometheus metrics at `/metrics`.
+
+- [Prometheus configuration](configs/prometheus.yml): collects metrics every 15 seconds.
+- [Grafana dashboard](configs/grafana_dashboard.json): shows request count, mean response time in milliseconds, and HTTP 4xx/5xx percentage for `POST /api/v1/predict`.
+
+The panels show cumulative measurements since API startup.
+
+When using Docker Desktop, start the host API with:
+
+```powershell
+python -m uvicorn app.api.main:app --host 0.0.0.0 --port 8000
+```
+
+Prometheus and Grafana share the `pcb-monitoring` Docker network. Grafana connects to `http://pcb-prometheus:9090`. When importing the dashboard into another Grafana instance, reassign its Prometheus data source.

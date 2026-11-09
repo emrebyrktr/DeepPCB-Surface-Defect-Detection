@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.monitoring import setup_monitoring
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.predict import router as predict_router
 from app.api.v1.router import api_v1_router
@@ -65,3 +66,5 @@ async def root():
         "health": "/health",
         "api_v1": settings.API_V1_STR,
     }
+
+setup_monitoring(app)
