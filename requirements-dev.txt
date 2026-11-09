@@ -8,6 +8,7 @@ numpy
 opencv-python
 onnxruntime
 prometheus-fastapi-instrumentator
+prometheus-client
 
 # Training and experiments
 ultralytics

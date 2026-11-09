@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.api.dependencies import get_inference_service
+from app.api.monitoring import DETECTIONS_TOTAL
 from app.api.schemas.response import DetectionResponse
 from app.services.inference_service import InferenceService
 
@@ -15,11 +16,15 @@ async def predict_defects(
     """Yüklenen PCB görseli üzerinde 6 sınıf için nesne tespiti gerçekleştirir."""
     output = await inference_service.predict_from_upload(file)
 
-    return DetectionResponse(
+    response = DetectionResponse(
         success=True,
         total_defects=output["total_defects"],
         detections=output["detections"],
         latency_ms=output["latency_ms"],
         filename=output.get("filename"),
     )
+    for detection in response.detections:
+        DETECTIONS_TOTAL.labels(class_name=detection.class_name).inc()
+
+    return response
 

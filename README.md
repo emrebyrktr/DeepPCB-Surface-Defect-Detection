@@ -277,7 +277,7 @@ A new model release requires updating its release tag and both package hashes in
 The API logs request methods, paths, HTTP statuses and durations, and exposes Prometheus metrics at `/metrics`.
 
 - [Prometheus configuration](configs/prometheus.yaml): collects metrics every 15 seconds.
-- [Grafana dashboard](configs/grafana_dashboard.json): shows request count, mean response time in milliseconds, and HTTP 4xx/5xx percentage for `POST /api/v1/predict`.
+- [Grafana dashboard](configs/grafana_dashboard.json): shows prediction request count, mean HTTP response time in milliseconds, HTTP 4xx/5xx percentage, and detected defect counts by class.
 
 The panels show cumulative measurements since API startup.
 

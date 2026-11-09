@@ -1,12 +1,17 @@
 from time import perf_counter
 
 from fastapi import FastAPI, Request
+from prometheus_client import Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger("monitoring")
-
+DETECTIONS_TOTAL = Counter(
+    "pcb_detections_total",
+    "Total number of detected PCB defects by class.",
+    ["class_name"],
+)
 
 def setup_monitoring(app: FastAPI) -> None:
     Instrumentator(excluded_handlers=["/metrics"]).instrument(app).expose(app)
