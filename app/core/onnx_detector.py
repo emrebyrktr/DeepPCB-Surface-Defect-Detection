@@ -7,9 +7,9 @@ from typing import Any
 import cv2
 import numpy as np
 import onnxruntime as ort
-import yaml
 
 from app.core.base_detector import BaseDetector
+from app.utils.config_loader import get_inference_config
 
 
 class ONNXDetector(BaseDetector):
@@ -21,14 +21,11 @@ class ONNXDetector(BaseDetector):
         conf_threshold: float | None = None,
         iou_threshold: float | None = None,
     ):
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-
-        infer_cfg = cfg.get("inference", {})
+        infer_cfg = get_inference_config(config_path)
 
         self.model_path = Path(model_path or infer_cfg.get("model_path", "models/pcb_defect_best.onnx"))
         self.metadata_path = Path(metadata_path or infer_cfg.get("metadata_path", "models/metadata.json"))
-        self.conf_threshold = float(infer_cfg.get("conf_threshold", 0.25) if conf_threshold is None else conf_threshold)
+        self.conf_threshold = float(infer_cfg.get("conf_threshold", 0.30) if conf_threshold is None else conf_threshold)
         self.iou_threshold = float(infer_cfg.get("iou_threshold", 0.45) if iou_threshold is None else iou_threshold)
         if not 0.0 <= self.conf_threshold <= 1.0 or not 0.0 <= self.iou_threshold <= 1.0:
             raise ValueError("Guven ve IoU esikleri 0 ile 1 arasinda olmali.")
@@ -110,7 +107,7 @@ class ONNXDetector(BaseDetector):
         orig_h, orig_w = orig_shape
         scale, pad_x, pad_y = scale_info
 
-        # YOLOv8 ONNX: (8400, 10)
+        # Her satır: merkez x/y, genişlik/yükseklik ve sınıf skorları.
         predictions = outputs[0].T
 
         boxes = []

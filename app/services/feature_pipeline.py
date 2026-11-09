@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 
 
 class ImageFeaturePipeline:
-    """Görsel verisini model için ön hazırlık aşamalarından geçiren işlem boru hattı."""
+    """Yüklenen görseli çözer ve piksel sınırını kontrol eder."""
 
     def __init__(self, max_image_pixels: int = 25_000_000):
         if max_image_pixels <= 0:

@@ -1,4 +1,4 @@
-"""Lightweight provenance helpers and optional MLflow experiment tracking."""
+"""Model, data and code provenance with optional MLflow tracking."""
 
 import hashlib
 import importlib
@@ -23,7 +23,7 @@ def file_sha256(filepath: str | Path) -> str:
 
 
 def git_state() -> dict[str, str]:
-    """Identify the checkout without presenting dirty code as a reproducible commit."""
+    """Return the commit ID and whether the working tree has changes."""
     try:
         commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, timeout=5
@@ -43,7 +43,7 @@ def dvc_data_hash(
     dvc_file: str | Path = "data/processed.dvc",
     data_path: str = "data/processed",
 ) -> str:
-    """Read the recorded processed-data snapshot, not uncommitted dataset changes."""
+    """Read the processed-data hash from the lock file or a legacy DVC pointer."""
     try:
         with Path(lock_file).open(encoding="utf-8") as stream:
             locked = yaml.safe_load(stream) or {}
@@ -77,7 +77,7 @@ class MLflowTracker:
         tracking_uri: str | None = None,
         client: Any | None = None,
     ):
-        # Hashing and export utilities need no Torch or MLflow installation.
+        # Load MLflow only when creating a tracker.
         self.mlflow = client if client is not None else importlib.import_module("mlflow")
         if tracking_uri:
             uri = str(tracking_uri)
@@ -114,7 +114,7 @@ class MLflowTracker:
             "os": platform.platform(),
             "python_version": platform.python_version(),
             "torch_version": torch_version,
-            # GPU availability does not prove that this run used the GPU.
+            # Record the device selected for this run.
             "device": str(actual_device or params.get("device") or "unknown"),
         }
         if model_path:
@@ -137,5 +137,5 @@ class MLflowTracker:
             return str(run.info.run_id)
 
     def log_report(self, run_id: str, report_path: str | Path) -> None:
-        """Attach a report containing its own run identity to the completed run."""
+        """Attach an evaluation report to an existing run."""
         self.mlflow.tracking.MlflowClient().log_artifact(run_id, str(report_path))

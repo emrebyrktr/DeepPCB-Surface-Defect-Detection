@@ -105,7 +105,7 @@ def _build_processed_split(
 
 
 def _publish_outputs(replacements: list[tuple[Path, Path]], workspace: Path) -> None:
-    """Swap only the checked sibling output directories; restore them on failure."""
+    """Publish staged outputs and restore backups if replacement fails."""
     backups = []
     published = []
     try:
@@ -182,7 +182,7 @@ def prepare_dataset(raw_dir: Path, interim_dir: Path, processed_dir: Path) -> di
         preserve_workspace = True
         raise
     except BaseException as error:
-        # Keep any original outputs even if cancellation interrupts transaction bookkeeping.
+        # Preserve any backups left after an interrupted publication.
         preserve_workspace = True
         if any(workspace.glob("previous-*")):
             error.add_note(f"Original output backups preserved at {workspace}")

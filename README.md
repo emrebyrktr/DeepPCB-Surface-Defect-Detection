@@ -1,248 +1,132 @@
-# 🔬 PCB Kusur Tespiti ve MLOps
+# PCB Defect Detection and MLOps
 
 [![CI Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-1.31-005CED?logo=onnx&logoColor=white)](https://onnxruntime.ai/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![DVC](https://img.shields.io/badge/DVC-Data_Versioned-945DD6?logo=dvc&logoColor=white)](https://dvc.org/)
-[![MLflow](https://img.shields.io/badge/MLflow-Tracking-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
+[![CD Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yml)
 
-Bu proje, endüstriyel baskılı devre kartları (PCB) üzerindeki altı kusur sınıfını YOLO ile tespit eder. Veri hazırlama, eğitim, ONNX paketleme, değerlendirme ve FastAPI servisini bir araya getirir. Veri ve modeller DVC + Google Drive ile sürümlenir; değerlendirme sonuçları MLflow ile yerelde kaydedilir.
+An object detector for six types of printed circuit board defects, served through a CPU-based inference API. The repository covers dataset preparation, YOLOv8 training, evaluation, ONNX export, and automated Docker deployment.
 
-Odak: kolay çalıştırılabilen, test edilmiş ve modelin sınırlarını gösteren bir portfolyo projesi. Aşağıdaki benchmark değerleri kayıtlı önceki koşulara aittir; her kod değişikliğinde yeniden ölçülmüş sonuçlar değildir.
+The main goal is to take a trained model beyond a training notebook: package its inputs and outputs, test the serving code, and publish the same container image that passed inference checks.
 
----
+**Stack:** Python 3.11, Ultralytics YOLOv8, ONNX Runtime, OpenCV, FastAPI, DVC, MLflow, Docker, GitHub Actions, Render.
 
-## 🎯 Projenin Amacı ve Kusur Sınıfları
+## Dataset and task
 
-DeepPCB veri seti (1500 çift görsel, 10.000+ anotasyon) kullanılarak, insan gözünün kaçırabileceği 6 mikro kusur sınıfı yüksek hassasiyetle tespit edilir:
+The model uses the [DeepPCB dataset](https://github.com/tangsanli5201/DeepPCB) and predicts bounding boxes, class labels, and confidence scores for six defect classes:
 
-1. **`open`** (Açık Devre)
-2. **`short`** (Kısa Devre — En kritik üretim hatası)
-3. **`mousebite`** (Kenar / Fare Isırığı Çapağı)
-4. **`spur`** (Yol Çıkıntısı / İstenmeyen Bakır Sivrilmesi)
-5. **`copper`** (Artık / İzolasyonsuz Bakır Lekesi)
-6. **`pin-hole`** (İğne Deliği / Delik Boşluğu)
+| Class | Defect |
+|---|---|
+| `open` | Broken circuit trace |
+| `short` | Unwanted connection between traces |
+| `mousebite` | Notch along a trace edge |
+| `spur` | Protrusion along a trace edge |
+| `copper` | Spurious copper |
+| `pin-hole` | Hole in a copper region |
 
----
+Data and model files are stored through DVC and Google Drive. Git tracks the source code, configuration, pipeline definitions, and DVC references.
 
-## 🏗️ MLOps Mimari Özellikleri
+## Architecture
 
-* **Veri hazırlama:** Ham etiketler YOLO formatına çevrilir; eksik görsel/etiket eşleşmesi ve geçersiz kutular hata verir. Hazır train/valid/test bölümleri korunur. Kümeler arasında birebir aynı görsel bulunmadığı kontrol edilmiştir; benzer kart grupları düzeyindeki sızıntı ayrıca incelenmelidir.
-* **Veri ve model sürümleme:** DVC + Google Drive, büyük veri ve model dosyalarını saklar; Git'te `data/raw.dvc`, `dvc.yaml` ve `dvc.lock` tutulur.
-* **Yerel deney takibi:** Değerlendirme metrikleri, model hash'i ve kaydedilmiş veri sürümü MLflow'a yazılır. Eğitim koşularının otomatik MLflow bağlantısı henüz tamamlanmamıştır.
-* **Hafif Çıkarım (ONNX Runtime):** Canlı serviste hantal PyTorch / Torchvision bağımlılığı kaldırıldı; C++ NMS ve ONNX Runtime motoru ile sadece CPU üzerinde **~250 ms** çıkarım süresi elde edildi.
-* **Docker ile çalıştırma:** `python:3.11-slim` tabanlı imaj, non-root `appuser` ve `HEALTHCHECK` içerir. Model ve metadata eksik veya geçersizse API başlangıcı durur.
-
----
-
-## 📊 Model Başarımı ve Benchmark Sonuçları
-
-Model Google Colab Tesla T4 GPU üzerinde 50 epoch eğitilmiş ve bağımsız test setinde değerlendirilmiştir:
-
-| Metrik | Değer | Açıklama |
-| :--- | :---: | :--- |
-| **mAP@50** | **%98.0** | Genel nesne tespit başarımı |
-| **mAP@50-95** | **%76.8** | Farklı IoU eşiklerindeki katı doğruluk |
-| **Precision** | **%97.3** | Yanlış alarm (False Positive) düşüklüğü |
-| **Recall** | **%95.2** | Kusuru kaçırmama (False Negative) başarısı |
-| **Latency (CPU Tekil)** | **~330 ms** | Uçtan uca toplam SLA süresi |
-
-### Sınıf Bazlı mAP@50 Dağılımı
-* `copper`: **%99.5**
-* `pin-hole`: **%99.0**
-* `mousebite`: **%98.6**
-* `spur`: **%98.1**
-* `open`: **%98.0**
-* `short`: **%95.2** *(En kritik sınıf)*
-
-### 🚀 Eşzamanlı Yük Testi & Kapasite (Locust Benchmark)
-
-Canlı Docker konteyneri üzerinde `tests/locustfile.py` ile 20 eşzamanlı sanal kullanıcı simüle edilerek sistemin stres ve yük altındaki davranışı ölçülmüştür:
-
-| Endpoint | İstek Sayısı | Hata (%) | Medyan (ms) | %95 Dilimi (p95) | Ortalama (ms) | Min / Max (ms) | Anlık RPS |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **`GET /health`** | 19 | %0.00 | 2,300 | 5,500 | 2,860 | 1,114 / 5,501 | 0.2 req/s |
-| **`POST /predict`** | 81 | %0.00 | 6,400 | 11,000 | 6,805 | 4,256 / 11,714 | 3.0 req/s |
-| **Genel Toplam (Aggregated)** | **100** | **%0.00** | **6,300** | **11,000** | **6,055** | **1,114 / 11,714** | **3.2 req/s** |
-
-#### 📌 Yük Testi Çıkarımları:
-* Bu kısa koşuda 100 istekte hata görülmedi.
-* Toplam trafik **3.2 istek/sn**, tahmin trafiği **3.0 istek/sn** olarak kaydedildi.
-* Yük altında tahmin p95 süresi **11 saniye** oldu; tekil görseldeki yaklaşık 330 ms bu yük için garanti değildir.
-
-Yük testini yerel ortamınızda interaktif web paneliyle çalıştırmak için:
-```powershell
-locust -f tests/locustfile.py --host http://localhost:8000
-# Web Paneli: http://localhost:8089
+```mermaid
+flowchart LR
+    A["DeepPCB / DVC"] --> B["Data preparation"]
+    B --> C["YOLOv8 training"]
+    C --> D["ONNX + metadata"]
+    D --> E["Evaluation / MLflow"]
+    D --> F["FastAPI / ONNX Runtime"]
+    H["PCB image"] --> F
+    F --> G["Boxes, classes, scores, timing"]
 ```
 
----
+Training and serving have separate dependencies. The API image runs ONNX Runtime on CPU without installing PyTorch or Ultralytics. Evaluation results and model, data, and code identifiers are recorded in a local MLflow store.
 
-## 📁 Proje Dizin Yapısı
+### Implementation decisions
+
+- **Data preparation:** Image/label pairs and bounding boxes are validated. New outputs are staged before replacing existing data, with rollback on failure.
+- **Checkpoint selection:** Training uses the best checkpoint produced by the trainer. A temporary copy and atomic replacement protect the existing checkpoint during publication.
+- **Model loading:** The API loads the ONNX file and metadata at startup. Invalid or missing files stop startup. A model hash is checked when the metadata provides one.
+- **Inference:** Preprocessing, CPU inference, and per-class OpenCV NMS form the detection pipeline. Inference runs in a thread pool to keep it out of the async request loop.
+- **Input limits:** Uploads default to a 10 MiB limit, and decoded images are limited to 25 million pixels. Invalid images receive an error response.
+- **Deployment:** The container that passes the inference smoke check is pushed to Docker Hub without rebuilding. Render receives a deployment request using that image's digest.
+
+## Code map
+
+| Location | Responsibility |
+|---|---|
+| [ml/prepare_data.py](ml/prepare_data.py) | Label conversion, validation, and dataset preparation |
+| [ml/train.py](ml/train.py) | Training and best-checkpoint publication |
+| [ml/export_package.py](ml/export_package.py) | ONNX export and metadata generation |
+| [ml/evaluate.py](ml/evaluate.py), [ml/tracker.py](ml/tracker.py) | Evaluation reports and MLflow records |
+| [app/core/onnx_detector.py](app/core/onnx_detector.py) | Preprocessing, inference, and NMS |
+| [app/utils/config_loader.py](app/utils/config_loader.py), [app/core/config.py](app/core/config.py) | Shared YAML loading and environment overrides |
+| [app/services/](app/services/) | Model loading and prediction flow |
+| [app/api/](app/api/) | FastAPI endpoints and response schemas |
+| [app/ui/app.py](app/ui/app.py) | Local Streamlit client for the API |
+| [tests/](tests/) | Service, model-package, and pipeline regression tests |
+| [.github/workflows/](.github/workflows/) | CI checks and automated releases |
+
+## Results and verification
+
+The released `model-v1.0.0` package contains these test metrics in `metadata.json`:
+
+| Metric | Value |
+|---|---:|
+| Precision | 97.36% |
+| Recall | 95.24% |
+| mAP@50 | 98.06% |
+| mAP@50-95 | 76.81% |
+
+These are recorded results from the existing model package. They were not recalculated after the latest source changes. The evaluation script writes new results to `reports/metrics.json` and MLflow.
+
+**Deployment check:** On 9 November 2026, the automated release reached `Live` on Render. A request using `01_PCB__98.jpg` returned `success: true`, seven detections, and approximately five seconds of total processing time. This was a single-request check of the deployed service; throughput and accuracy require separate measurements.
+
+## Local setup
+
+Run commands from the repository root. Both the API and the Docker build require:
 
 ```text
-DataProcess/
-├── .dockerignore
-├── .dvcignore
-├── .gitignore
-├── Dockerfile
-├── dvc.yaml
-├── dvc.lock
-├── pyproject.toml
-├── requirements-dev.txt
-├── requirements.txt
-├── configs/
-│   ├── config.yaml
-│   └── data.yaml
-├── data/
-│   └── raw.dvc
-├── ml/
-│   ├── evaluate.py
-│   ├── export_package.py
-│   ├── prepare_data.py
-│   ├── tracker.py
-│   └── train.py
-├── models/
-│   ├── metadata.json
-│   └── pcb_defect_best.onnx
-├── app/
-│   ├── api/
-│   │   ├── dependencies.py
-│   │   ├── main.py
-│   │   ├── schemas/
-│   │   │   ├── request.py
-│   │   │   └── response.py
-│   │   └── v1/
-│   │       ├── endpoints/
-│   │       │   ├── health.py
-│   │       │   └── predict.py
-│   │       └── router.py
-│   ├── core/
-│   │   ├── base_detector.py
-│   │   ├── config.py
-│   │   ├── dummy_detector.py
-│   │   └── onnx_detector.py
-│   ├── services/
-│   │   ├── feature_pipeline.py
-│   │   ├── inference_service.py
-│   │   └── model_loader.py
-│   ├── ui/
-│   │   └── app.py
-│   └── utils/
-│       ├── config_loader.py
-│       └── logger.py
-├── scripts/
-│   ├── check_distribution.py
-│   ├── create_ci_model.py
-│   └── smoke_api.py
-└── tests/
-    ├── locustfile.py
-    ├── test_api.py
-    ├── test_config.py
-    ├── test_detector.py
-    ├── test_export_package.py
-    ├── test_tracking.py
-    └── test_training_pipeline.py
+models/pcb_defect_best.onnx
+models/metadata.json
 ```
 
----
+Download the two files from the [model-v1.0.0 release](https://github.com/emrebyrktr/Proje1/releases/tag/model-v1.0.0) into `models/`. Developers with access to the configured DVC remote can also use `dvc pull`. Model files and data are excluded from Git; Google Drive credentials belong in the local `.dvc/config.local` file.
 
-## 🚀 Hızlı Başlangıç
-
-### Seçenek 1: Docker ile Çalıştırma (Tavsiye Edilen)
-
-Derlemeden önce `models/pcb_defect_best.onnx` ve `models/metadata.json` bulunmalıdır. Yeni bir checkout'ta DVC erişimini yapılandırıp `dvc pull` çalıştırın. CI fixture modeli geliştirme testleri içindir; PCB tahmini için eğitilmiş model paketini kullanın.
+### Docker
 
 ```powershell
-# 1. Docker imajını derleyin
-docker build -t pcb-defect-api:latest .
-
-# 2. Konteyneri arka planda başlatın
-docker run -d -p 8000:8000 --name pcb-api pcb-defect-api:latest
-
-# 3. Canlı Swagger arayüzünü tarayıcınızdan açın
-# http://localhost:8000/docs
+docker build -t pcb-defect-api:local .
+docker run --rm --name pcb-api -p 127.0.0.1:8000:8000 pcb-defect-api:local
 ```
 
-### Seçenek 2: Yerel Geliştirme Ortamı
+The Dockerfile uses `python:3.11-slim`, an unprivileged application user, and a health check.
+
+### Python
 
 ```powershell
-# Sanal ortamı oluşturun ve aktif edin
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-
-# Geliştirme paketlerini kurun
-pip install -r requirements-dev.txt
-
-# API sunucusunu başlatın
-uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Streamlit görsel stüdyosunu başlatın (ayrı bir terminalde)
-streamlit run app/ui/app.py
-
-# Yük testini başlatın (Locust)
-locust -f tests/locustfile.py --host http://localhost:8000
+python -m pip install -r requirements.txt
+python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 ```
 
----
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/health` | Model name, version, device, and classes |
+| `POST /api/v1/predict` | Image upload in the `file` field; detections and timing |
+| `/docs` | Local Swagger documentation |
 
-## 🔌 API Kullanımı
+The `/health` and `/predict` aliases are also available. The local server address is `http://127.0.0.1:8000`.
 
-### 1. Sağlık Kontrolü (`GET /health`)
-```bash
-curl http://localhost:8000/health
-```
-```json
-{
-  "status": "healthy",
-  "model_name": "DeepPCB-YOLOv8",
-  "model_version": "1.0.0",
-  "device": "cpu",
-  "classes": ["open", "short", "mousebite", "spur", "copper", "pin-hole"]
-}
-```
-
-### 2. Kusur Tespiti (`POST /predict`)
-```bash
-curl -X POST "http://localhost:8000/predict" \
-     -F "file=@data/raw/test/images/01_PCB__31.jpg"
-```
-```json
-{
-  "success": true,
-  "total_defects": 9,
-  "detections": [
-    {
-      "box": { "x1": 508.0, "y1": 378.0, "x2": 543.0, "y2": 427.0 },
-      "confidence": 0.9212,
-      "class_id": 4,
-      "class_name": "copper"
-    }
-  ],
-  "latency_ms": {
-    "preprocess": 14.5,
-    "inference": 257.8,
-    "postprocess": 59.7,
-    "total": 332.0
-  },
-  "filename": "01_PCB__31.jpg"
-}
-```
-
----
-
-## 🧪 Test Takımı
-
-Projedeki yapılandırma bütünlüğü ve API uç noktaları `pytest` ile otomatik test edilir:
+## Development and tests
 
 ```powershell
+python -m pip install -r requirements-dev.txt
+python -m ruff check app/ ml/ scripts/ tests/
 python -m pytest tests/ -v
 ```
-Normal testler açıkça seçilmiş test doubles kullanır; GPU veya eğitim çalıştırılması gerektirmez. Geliştirme ve test araçları `pip install -r requirements-dev.txt` ile kurulur. CI yalnız servis ve test paketlerini kurar.
 
-Mevcut ONNX modeli ve metadata ile gerçek servis başlangıcını ayrıca doğrulamak için:
+The test suite covers API responses and invalid inputs, model/metadata validation, per-class NMS, export and tracking behavior, dataset preparation failures, and interrupted checkpoint publication. The normal test run does not start model training.
+
+Integration checks with the actual model are opt-in:
 
 ```powershell
 $env:RUN_MODEL_INTEGRATION = "1"
@@ -250,29 +134,43 @@ python -m pytest tests/test_detector.py -m integration -v
 Remove-Item Env:RUN_MODEL_INTEGRATION
 ```
 
-CI, boş ONNX yerine geçerli bir test modeliyle konteyner açılışını ve tahmini kontrol eder; bu modelin PCB başarımını ölçmez. Model dosyası veya metadata eksik/geçersizse API başlangıcı hata verir.
-
-`dvc repro` eğitim başlatabilir. Kaynak kod ve komutlar değiştiğinde eski `dvc.lock` geçmiş çıktının kaydı olarak korunur; pipeline yeniden çalıştırılıp doğrulanmadan hash'ler elle değiştirilmez.
-
----
-
-## 📦 Veri ve Model Ağırlıklarını İndirme (DVC)
-
-Eğitim verilerine ve model ağırlıklarına erişmek için DVC ile uzaktan çekebilirsiniz:
-
-Google Drive erişim ayarları Git'in yok saydığı `.dvc/config.local` içinde tutulur. Ortak `.dvc/config` yalnız remote tanımını içerir; kendi erişim bilgilerinizi yerel yapılandırmaya ekleyin.
+To check health and inference against a running local API:
 
 ```powershell
-dvc pull
+python scripts/smoke_api.py --expected-model DeepPCB-YOLOv8
 ```
 
----
+The Streamlit client can be started in a separate terminal with `streamlit run app/ui/app.py`. An optional Locust scenario is available in `tests/locustfile.py`.
 
-## 👤 İletişim & Katkı
+## Training pipeline
 
-<!-- ✏️ DÜZENLEME ALANI: Kendi isim ve LinkedIn profilinizi yazın -->
-* **Geliştirici:** [Adınız Soyadınız]
-* **GitHub:** [@emrebyrktr](https://github.com/emrebyrktr)
-* **LinkedIn:** [Profil Linkiniz](https://linkedin.com/in/profil-linkiniz)
-* **Lisans:** MIT
+[dvc.yaml](dvc.yaml) defines:
 
+```text
+prepare_data → train → export → evaluate
+```
+
+With training data and development dependencies in place, `dvc repro` runs changed pipeline stages and may start training. Model and training settings are in [configs/config.yaml](configs/config.yaml); dataset paths and class names are in [configs/data.yaml](configs/data.yaml). The default training device is `0`, while serving uses `cpu`.
+
+The checked-in `dvc.lock` describes an earlier pipeline run. The full training and evaluation pipeline has not been rerun after the latest source changes. Training and model promotion are manually initiated; evaluation results are recorded in MLflow.
+
+## CI/CD
+
+```text
+Push to main
+  → CI: Ruff, pytest, and Docker/HTTP checks with a test model
+  → CD: download the real model package and verify its hashes
+  → build the container and check inference with the real model
+  → push the tested image to Docker Hub
+  → request a Render deployment by digest for the current main commit
+```
+
+- [ci.yml](.github/workflows/ci.yml) runs on pushes and pull requests to `main`. Its small ONNX fixture checks the serving code.
+- [cd.yml](.github/workflows/cd.yml) runs after successful CI for a `main` push from the same repository. It downloads the actual model from a GitHub release; the CI fixture is not published.
+- Each run creates an image tag containing the tested commit SHA and run identifiers. The current release candidate also receives the `demo` tag. Render is given the image digest.
+- Release runs are queued. If the tested commit is no longer the tip of `main`, the deployment request is skipped.
+- Failed model verification or inference checks stop publication. A successful hook request and a `Live` deployment are checked separately.
+
+Required GitHub Actions repository secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `RENDER_DEPLOY_HOOK`. Secret values are kept out of workflow files.
+
+A new model release requires updating its release tag and both package hashes in the CD workflow. Model versions and application/image versions are tracked separately.

@@ -1,12 +1,44 @@
 import json
 from pathlib import Path
 
+import pytest
+
+from app.core.config import Settings
 from app.utils import get_app_config, get_inference_config, load_yaml
 
 
 def test_config_yaml_exists():
     path = Path("configs/config.yaml")
     assert path.exists(), "configs/config.yaml dosyasi mevcut olmali"
+
+
+def test_missing_config_is_required_by_default(tmp_path):
+    with pytest.raises(FileNotFoundError, match="Konfigurasyon dosyasi"):
+        load_yaml(tmp_path / "missing.yaml")
+
+
+def test_settings_allow_missing_config(tmp_path):
+    config_path = tmp_path / "missing.yaml"
+
+    assert load_yaml(config_path, required=False) == {}
+    assert Settings(config_path).data == {}
+
+
+@pytest.mark.parametrize("content", ["", "null\n"])
+def test_empty_config_is_an_empty_mapping(tmp_path, content):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(content, encoding="utf-8")
+
+    assert load_yaml(config_path) == {}
+
+
+@pytest.mark.parametrize("content", ["[]", "42"])
+def test_config_requires_a_mapping(tmp_path, content):
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="YAML nesnesi"):
+        load_yaml(config_path)
 
 
 def test_config_yaml_sections():

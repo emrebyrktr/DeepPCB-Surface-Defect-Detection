@@ -105,6 +105,31 @@ def test_zero_thresholds_are_respected(model_files, runtime_stub):
     assert detector.iou_threshold == 0.0
 
 
+def test_detector_and_settings_share_default_thresholds(monkeypatch, model_files, runtime_stub):
+    model_path, metadata_path, config_path = model_files
+    config_path.write_text("{}", encoding="utf-8")
+    monkeypatch.delenv("CONF_THRESHOLD", raising=False)
+    monkeypatch.delenv("IOU_THRESHOLD", raising=False)
+
+    detector = ONNXDetector(
+        model_path=str(model_path), metadata_path=str(metadata_path), config_path=str(config_path),
+    )
+    settings = Settings(config_path)
+
+    assert detector.conf_threshold == settings.CONF_THRESHOLD == 0.30
+    assert detector.iou_threshold == settings.IOU_THRESHOLD == 0.45
+
+
+def test_detector_requires_config_file(tmp_path, model_files, runtime_stub):
+    model_path, metadata_path, _ = model_files
+
+    with pytest.raises(FileNotFoundError, match="Konfigurasyon dosyasi"):
+        ONNXDetector(
+            model_path=str(model_path), metadata_path=str(metadata_path),
+            config_path=str(tmp_path / "missing.yaml"),
+        )
+
+
 @pytest.mark.parametrize("field,value", [("conf_threshold", -0.1), ("iou_threshold", 1.1)])
 def test_invalid_thresholds_fail_before_loading(model_files, field, value):
     model_path, metadata_path, config_path = model_files

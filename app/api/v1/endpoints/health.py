@@ -9,7 +9,7 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse, summary="Sağlık Kontrolü")
 async def health_check(detector: BaseDetector = Depends(get_detector)):
-    """API ve model durumunun sağlıklı olup olmadığını doğrular."""
+    """Yüklenmiş modelin kimliğini ve servis durumunu döndürür."""
     return HealthResponse(
         status="healthy",
         model_name=detector.model_name,

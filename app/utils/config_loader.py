@@ -4,15 +4,22 @@ from typing import Any
 import yaml
 
 
-def load_yaml(file_path: str | Path) -> dict[str, Any]:
-    """YAML dosyasını güvenle yükler."""
+def load_yaml(file_path: str | Path, *, required: bool = True) -> dict[str, Any]:
+    """YAML ayar dosyasını sözlük olarak okur."""
     path = Path(file_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Konfigurasyon dosyasi bulunamadi: {path}")
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except FileNotFoundError:
+        if not required:
+            return {}
+        raise FileNotFoundError(f"Konfigurasyon dosyasi bulunamadi: {path}") from None
 
-    with open(path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-        return data if data is not None else {}
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ValueError(f"Konfigurasyon bir YAML nesnesi olmali: {path}")
+    return data
 
 
 def get_app_config(config_path: str | Path = "configs/config.yaml") -> dict[str, Any]:

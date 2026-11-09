@@ -67,7 +67,7 @@ def evaluate_model(
         raise ValueError("split must be 'val' or 'test'")
     with Path(config_path).open(encoding="utf-8") as stream:
         config = yaml.safe_load(stream) or {}
-    # Use the production CPU target by default, independently of training hardware.
+    # Use the configured inference device unless evaluation overrides it.
     selected_device = str(device or config.get("inference", {}).get("device", "cpu"))
     model = _load_yolo(model_path)
     evaluated = model.val(data=data_yaml, split=split, name=split, device=selected_device)

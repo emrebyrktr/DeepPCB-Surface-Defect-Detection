@@ -1,4 +1,4 @@
-"""Industrial PCB Defect Detection Application Package."""
+"""PCB defect detection service."""
 
 __version__ = "1.0.0"
 

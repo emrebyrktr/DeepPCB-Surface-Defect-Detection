@@ -9,7 +9,7 @@ from app.services.feature_pipeline import ImageFeaturePipeline
 
 
 class InferenceService:
-    """Çıkarım iş akışını yöneten servis katmanı."""
+    """Yüklemeyi doğrular ve tahmini thread pool'da çalıştırır."""
 
     def __init__(
         self,

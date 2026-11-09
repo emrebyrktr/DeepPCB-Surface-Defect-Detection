@@ -49,7 +49,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# V1 Versioned Router
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
 # Geriye dönük kök seviyesi yönlendirmeleri

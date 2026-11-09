@@ -5,16 +5,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Bagimliliklarin kurulmasi (katman onbellegi icin koddan once)
+# Install dependencies before source files to reuse the cached layer.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Model paketi, konfigurasyon ve servis kodlari
 COPY configs/ configs/
 COPY models/pcb_defect_best.onnx models/metadata.json models/
 COPY app/ app/
 
-# Guvenlik icin standart calisma kullanicisi
+# Run the API as an unprivileged user.
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 

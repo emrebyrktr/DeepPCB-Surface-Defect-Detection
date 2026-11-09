@@ -1,4 +1,4 @@
-"""Create a valid, deterministic ONNX fixture for CI; never a trained PCB model."""
+"""Generate the fixed ONNX model used by CI smoke tests."""
 
 import argparse
 import hashlib

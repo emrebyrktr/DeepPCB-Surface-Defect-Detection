@@ -32,6 +32,7 @@ mlruns/
 
 # Ozel dokumanlar ve kimlikler
 NOTES.md
+YAPILACAKLAR.md
 MLOPS_CHECKLIST.md
 gdrive_creds.json
 *.docx

@@ -62,7 +62,7 @@ def export_model(
         "model_file": target_onnx.name,
         "model_sha256": file_sha256(target_onnx),
         "source_model_sha256": file_sha256(target_pt),
-        # Identify this export checkout, not an unverified historic training run.
+        # Record the source and configuration used for this export.
         "export_provenance": {**provenance(), "config_sha256": file_sha256(config_path)},
         "training_run_id": training_run_id,
         "preprocessing": {
@@ -81,7 +81,7 @@ def export_model(
             "inference": config.get("inference", {}),
         },
     }
-    # Never carry old evaluation results into a newly exported model package.
+    # Evaluation metrics are stored in a separate report.
     with (out_dir / "metadata.json").open("w", encoding="utf-8") as stream:
         json.dump(metadata, stream, indent=2, ensure_ascii=False, allow_nan=False)
         stream.write("\n")

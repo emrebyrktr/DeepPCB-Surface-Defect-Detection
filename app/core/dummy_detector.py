@@ -6,7 +6,7 @@ from app.core.base_detector import BaseDetector
 
 
 class DummyDetector(BaseDetector):
-    """Testler ve prototipleme icin sahte cikarim motoru."""
+    """Testlerde kullanılan sabit tahmin çıktıları."""
 
     def __init__(self, classes: list[str] | None = None):
         self.classes = classes or ["open", "short", "mousebite", "spur", "copper", "pin-hole"]

@@ -1,4 +1,4 @@
-"""Check a running API's readiness and real inference path using only stdlib."""
+"""Check API readiness and a prediction request using the standard library."""
 
 import argparse
 import json
