@@ -16,7 +16,7 @@ The main goal is to take a trained model beyond a training notebook: package its
 
 ## Dataset and task
 
-The model uses the [DeepPCB dataset]([https://github.com/tangsanli5201/DeepPCB](https://www.kaggle.com/datasets/arnablaha05/deep-pcb/data)) and predicts bounding boxes, class labels, and confidence scores for six defect classes:
+The dataset was downloaded from [Deep PCB on Kaggle](https://www.kaggle.com/datasets/arnablaha05/deep-pcb/data). The model predicts bounding boxes, class labels, and confidence scores for six defect classes:
 
 | Class | Defect |
 |---|---|
@@ -54,7 +54,7 @@ Training and serving have separate dependencies. The API image runs ONNX Runtime
 - **Deployment:** The container that passes the inference smoke check is pushed to Docker Hub without rebuilding. Render receives a deployment request using that image's digest.
 
 ## Repository layout
- 
+
 ```text
 .
 ├── .github/workflows/   # ci.yml, cd.yml
@@ -65,10 +65,8 @@ Training and serving have separate dependencies. The API image runs ONNX Runtime
 │   ├── ui/              # Streamlit client (app.py)
 │   └── utils/           # config loading and shared helpers
 ├── configs/             # config.yaml, data.yaml
+├── docs/results/         # Evaluation figures and source summary
 ├── data/                # DVC-tracked dataset (not stored in Git)
-├── docs/
-│   ├── img/             
-│   └── split_leakage/   # near_duplicates.csv
 ├── ml/                  # prepare_data, train, export_package, evaluate, tracker
 ├── models/              # pcb_defect_best.onnx, metadata.json (not stored in Git)
 ├── scripts/             # smoke_api.py, check_split_leakage.py
@@ -94,23 +92,78 @@ Training and serving have separate dependencies. The API image runs ONNX Runtime
 | [app/services/](app/services/) | Model loading and prediction flow |
 | [app/api/](app/api/) | FastAPI endpoints and response schemas |
 | [app/ui/app.py](app/ui/app.py) | Local Streamlit client for the API |
+| [scripts/build_readme_results.py](scripts/build_readme_results.py) | Figures and example predictions from the evaluation report |
 | [tests/](tests/) | Service, model-package, and pipeline regression tests |
 | [.github/workflows/](.github/workflows/) | CI checks and automated releases |
 
 ## Results and verification
 
-The released `model-v1.0.0` package contains these test metrics in `metadata.json`:
+The released ONNX model was re-evaluated on **150 test images with 984 annotated defects** on 9 November 2026. The current [evaluation report](reports/metrics.json) records the model hash, validation settings, and local MLflow run. [Figure sources and sample predictions](docs/results/summary.json) include a content fingerprint of the test images and labels.
 
-| Metric | Value |
+| Metric | Current test result |
 |---|---:|
-| Precision | 97.36% |
-| Recall | 95.24% |
-| mAP@50 | 98.06% |
-| mAP@50-95 | 76.81% |
+| Precision (class mean) | 96.41% |
+| Recall (class mean) | 94.94% |
+| Macro F1 | 95.65% |
+| mAP@50 | 97.82% |
+| mAP@50-95 | 77.57% |
 
-These are recorded results from the existing model package. They were not recalculated after the latest source changes. The evaluation script writes new results to `reports/metrics.json` and MLflow.
+Validation used ONNX Runtime on CPU, image size 640, batch size 1, confidence floor 0.001, and NMS IoU 0.70. Summary precision, recall, and F1 use Ultralytics' maximum mean-F1 confidence point; macro F1 is the mean of class F1 scores. The release metadata retains its earlier measurements. The table above comes from this new run.
 
-**Deployment check:** On 9 November 2026, the automated release reached `Live` on Render. A request using `01_PCB__98.jpg` returned `success: true`, seven detections, and approximately five seconds of total processing time. This was a single-request check of the deployed service; throughput and accuracy require separate measurements.
+### Class results
+
+`Images` counts test images containing the class; these counts overlap across classes. `Objects` counts annotated boxes. All score columns are percentages.
+
+| Class | Images | Objects | Precision | Recall | F1 | AP@50 | AP@50-95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| open | 134 | 191 | 97.87% | 96.35% | 97.10% | 97.78% | 69.67% |
+| short | 114 | 170 | 95.59% | 89.21% | 92.29% | 95.28% | 68.98% |
+| mousebite | 129 | 194 | 94.29% | 97.42% | 95.83% | 98.63% | 75.60% |
+| spur | 113 | 153 | 98.17% | 95.42% | 96.78% | 97.79% | 75.45% |
+| copper | 119 | 140 | 97.84% | 97.14% | 97.49% | 99.28% | 89.23% |
+| pin-hole | 124 | 136 | 94.74% | 94.12% | 94.43% | 98.18% | 86.52% |
+
+![Per-class AP at IoU 0.50 and IoU 0.50-0.95](docs/results/class_ap.png)
+
+`short` has the lowest recall (89.21%). `short` and `open` also have the lowest AP@50-95, making them useful starting points for reviewing missed detections and box localization.
+
+### Confusion matrix
+
+![Normalized detection confusion matrix](docs/results/confusion_matrix_normalized.png)
+
+[Raw counts](docs/results/confusion_matrix.png). Columns represent ground truth and rows represent predictions. The background row contains missed objects; the background column contains unmatched detections. This matrix uses validation confidence 0.001 and ground-truth matching IoU 0.45; its operating point differs from the summary P/R/F1 values.
+
+<details>
+<summary>Precision-recall and F1-confidence curves</summary>
+
+![Precision-recall curve](docs/results/pr_curve.png)
+
+![F1 versus confidence](docs/results/f1_curve.png)
+
+</details>
+
+### Example detections
+
+![Ground truth and ONNX predictions on two fixed test samples](docs/results/predictions.png)
+
+Left: annotations. Right: actual predictions from the API's `ONNXDetector`, using confidence 0.30 and NMS IoU 0.45 on CPU. Samples are fixed sorted positions 0 and 75 (`01_PCB__101.jpg` and `01_PCB__346.jpg`), selected before reviewing predictions. These serving thresholds differ from the validation settings above.
+
+### Timing and split checks
+
+Local validation averaged **5.22 ms preprocessing, 187.78 ms inference, and 3.72 ms postprocessing per image** (196.72 ms combined) on an Intel Core i5-9300H CPU. This measures the validation compute path with batch size 1; image loading, startup, and HTTP overhead are outside this timing.
+
+The split audit found no byte-identical files across splits. At the default dHash threshold of 20/256 bits, it flagged [6 validation-to-train and 10 test-to-train candidates](docs/results/split_similarity_candidates.csv), plus [2 validation-to-test candidates](docs/results/val_test_similarity_candidates.csv). These require manual review. Independence by physical PCB family has not been established, so the scores describe the current image split.
+
+**Deployment check:** On 9 November 2026, an automatic release reached `Live` on Render. A real PCB request returned `success: true`, seven detections, and about five seconds total processing time. That is a separate cloud request measurement.
+
+To repeat the model evaluation and rebuild the figures:
+
+```powershell
+python -m ml.evaluate --model models/pcb_defect_best.onnx --device cpu --tracking-uri sqlite:///mlflow.db
+python -m scripts.build_readme_results
+```
+
+Metric definitions and validation behavior: [Ultralytics validation](https://docs.ultralytics.com/modes/val/) and [performance metrics](https://docs.ultralytics.com/guides/yolo-performance-metrics/).
 
 ## Local setup
 
@@ -134,10 +187,12 @@ The Dockerfile uses `python:3.11-slim`, an unprivileged application user, and a 
 
 ### Python
 
+This setup includes the training, UI, and test tools. Docker uses the API-only `requirements.txt`; development uses `requirements-dev.txt` with the OpenCV package required by Ultralytics.
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -151,8 +206,9 @@ The `/health` and `/predict` aliases are also available. The local server addres
 
 ## Development and tests
 
+With the development environment activated:
+
 ```powershell
-python -m pip install -r requirements-dev.txt
 python -m ruff check app/ ml/ scripts/ tests/
 python -m pytest tests/ -v
 ```
@@ -175,6 +231,14 @@ python scripts/smoke_api.py --expected-model DeepPCB-YOLOv8
 
 The Streamlit client can be started in a separate terminal with `streamlit run app/ui/app.py`. An optional Locust scenario is available in `tests/locustfile.py`.
 
+To inspect duplicate files and similarity candidates across dataset splits:
+
+```powershell
+python scripts/check_split_leakage.py --root data/processed
+```
+
+Outputs are written to `reports/split_leakage/`. `near_duplicates.csv` compares validation/test images with training images; `val_test_near_duplicates.csv` compares validation with test when both are present. Similarity and matching label coordinates are review candidates. Only byte-identical files across splits cause exit code `1`; missing or empty splits return `2`.
+
 ## Training pipeline
 
 [dvc.yaml](dvc.yaml) defines:
@@ -185,7 +249,7 @@ prepare_data → train → export → evaluate
 
 With training data and development dependencies in place, `dvc repro` runs changed pipeline stages and may start training. Model and training settings are in [configs/config.yaml](configs/config.yaml); dataset paths and class names are in [configs/data.yaml](configs/data.yaml). The default training device is `0`, while serving uses `cpu`.
 
-The checked-in `dvc.lock` describes an earlier pipeline run. The full training and evaluation pipeline has not been rerun after the latest source changes. Training and model promotion are manually initiated; evaluation results are recorded in MLflow.
+The checked-in `dvc.lock` describes an earlier full pipeline run. Model weights have not been retrained; the current CPU evaluation is recorded separately in `reports/metrics.json`. Training and model promotion are manually initiated; evaluation results are recorded in MLflow.
 
 ## CI/CD
 

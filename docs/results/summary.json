@@ -1,0 +1,564 @@
+{
+  "schema_version": 1,
+  "source_report": {
+    "path": "reports/metrics.json",
+    "sha256": "d486e8b7fe3f1a8b53a5ad0408b6efca0a371612cd5678763c4e5e4497094e2e"
+  },
+  "model": {
+    "path": "models/pcb_defect_best.onnx",
+    "name": "DeepPCB-YOLOv8",
+    "version": "1.0.0",
+    "sha256": "b58d2ba6dd549bab6a11e683a2f4dcc925a067103560973a2431a8f579d3aef6",
+    "metadata_sha256": "66d3e282b49da60701de50f6388dc23eed86bd311e0df89b160c4b79ce78826b"
+  },
+  "dataset": {
+    "root": "data/processed",
+    "split": "test",
+    "images": 150,
+    "objects": 984,
+    "sha256": "c242ccba85f0e2eca90a747877f46c1541a9ba28365fda9e7c9e805477926b94",
+    "hash_scope": "Matched test images and labels, sorted by relative path; path length, UTF-8 path, file size, then file bytes.",
+    "hash_recorded_at": "figure generation",
+    "class_counts": {
+      "open": {
+        "images": 134,
+        "instances": 191
+      },
+      "short": {
+        "images": 114,
+        "instances": 170
+      },
+      "mousebite": {
+        "images": 129,
+        "instances": 194
+      },
+      "spur": {
+        "images": 113,
+        "instances": 153
+      },
+      "copper": {
+        "images": 119,
+        "instances": 140
+      },
+      "pin-hole": {
+        "images": 124,
+        "instances": 136
+      }
+    }
+  },
+  "evaluation_provenance": {
+    "git_commit": "3aaf25926ecf33c7fbec39b139a558a899cdc7fc",
+    "git_dirty": "true",
+    "dvc_data_hash": "171b4813c9c78821904e0dc45c931e46.dir"
+  },
+  "evaluation_source_hashes": {
+    "data_config_sha256": "8c938291df5140dab267dd9b71226c4f07df2c3341d4833af7720f227e90780c",
+    "config_sha256": "6cee774e11368b0f30f35b5c32f7f367617cc3c95366282f7d75abaae3460302",
+    "resolved_data_config_sha256": "859d7a7e2855e669cd8d43a10dfb7ad353d4092016b41b5bea9714531d536e18"
+  },
+  "validation": {
+    "split": "test",
+    "device": "cpu",
+    "imgsz": 640,
+    "batch": 1,
+    "workers": 0,
+    "conf": 0.001,
+    "iou": 0.7,
+    "plots": true
+  },
+  "aggregate": {
+    "precision": 0.9641483165899265,
+    "recall": 0.949437106599525,
+    "macro_f1": 0.9565201484256239,
+    "map50": 0.9782215882450861,
+    "map50_95": 0.7757491618308648,
+    "timing_ms_per_image": {
+      "preprocess": 5.221949999710583,
+      "inference": 187.77795933334954,
+      "postprocess": 3.723277999961283,
+      "total": 196.7231873330214
+    }
+  },
+  "per_class": {
+    "open": {
+      "precision": 0.9787262176679218,
+      "recall": 0.9634816311212014,
+      "f1": 0.9710440962409669,
+      "ap50": 0.9777588474601546,
+      "ap50_95": 0.6967186841241924,
+      "images": 134,
+      "instances": 191
+    },
+    "short": {
+      "precision": 0.9558774121337317,
+      "recall": 0.8920607963223582,
+      "f1": 0.9228671841435475,
+      "ap50": 0.9528164214280143,
+      "ap50_95": 0.6897985159721272,
+      "images": 114,
+      "instances": 170
+    },
+    "mousebite": {
+      "precision": 0.9428508689408444,
+      "recall": 0.9742268041237113,
+      "f1": 0.958282078727826,
+      "ap50": 0.9862721496698461,
+      "ap50_95": 0.7560245616617072,
+      "images": 129,
+      "instances": 194
+    },
+    "spur": {
+      "precision": 0.9816763107850573,
+      "recall": 0.954248366013072,
+      "f1": 0.9677680405104558,
+      "ap50": 0.9778626743324503,
+      "ap50_95": 0.7544994185656417,
+      "images": 113,
+      "instances": 153
+    },
+    "copper": {
+      "precision": 0.9783721227036021,
+      "recall": 0.9714285714285714,
+      "f1": 0.9748879835192755,
+      "ap50": 0.992833501919809,
+      "ap50_95": 0.8922677266592354,
+      "images": 119,
+      "instances": 140
+    },
+    "pin-hole": {
+      "precision": 0.9473869673084013,
+      "recall": 0.9411764705882353,
+      "f1": 0.9442715074116715,
+      "ap50": 0.9817859346602428,
+      "ap50_95": 0.8651860640022851,
+      "images": 124,
+      "instances": 136
+    }
+  },
+  "metric_notes": {
+    "macro_f1": "Arithmetic mean of the per-class F1 values returned by validation; not the harmonic mean of mean precision and mean recall."
+  },
+  "artifacts_dir": "runs/detect/reports/evaluation/test",
+  "figure_sources": {
+    "confusion_matrix.png": {
+      "path": "runs/detect/reports/evaluation/test/confusion_matrix.png",
+      "sha256": "aa9b913c57a7969abc209cfe1342037432335d6ad5be7c3bebcac36678d37ae5"
+    },
+    "confusion_matrix_normalized.png": {
+      "path": "runs/detect/reports/evaluation/test/confusion_matrix_normalized.png",
+      "sha256": "1261dd88bb64312310effc86ac783bc87ef89457131bc7b3dc3469a3ddde43f3"
+    },
+    "pr_curve.png": {
+      "path": "runs/detect/reports/evaluation/test/BoxPR_curve.png",
+      "sha256": "1cf060c47ebbf6d15c8483e7b8ec4966acbb4684685f4f39c6b635dfaea928c8"
+    },
+    "f1_curve.png": {
+      "path": "runs/detect/reports/evaluation/test/BoxF1_curve.png",
+      "sha256": "109a5e452cf77d207ed9f69b6a30df8b9e2d716fc538b049f8f71c3727e3ad3e"
+    }
+  },
+  "prediction_settings": {
+    "device": "cpu",
+    "imgsz": 640,
+    "confidence": 0.3,
+    "nms_iou": 0.45,
+    "config_sha256": "6cee774e11368b0f30f35b5c32f7f367617cc3c95366282f7d75abaae3460302",
+    "detector_source_sha256": "6b06cf51927a5e6d2c9de76729f69492a0886cf18ee59f4afd18ab870a2445a1",
+    "latency_scope": "ONNXDetector.predict only; image decoding, startup, and HTTP are excluded."
+  },
+  "sample_selection": "Lexicographically sorted test-image indices 0 and len(images)//2, chosen before inference.",
+  "samples": [
+    {
+      "file": "01_PCB__101.jpg",
+      "sorted_test_index": 0,
+      "ground_truth": [
+        {
+          "class_id": 0,
+          "class_name": "open",
+          "box": {
+            "x1": 330.0,
+            "y1": 244.0,
+            "x2": 362.0,
+            "y2": 276.99968
+          }
+        },
+        {
+          "class_id": 1,
+          "class_name": "short",
+          "box": {
+            "x1": 326.99999999999994,
+            "y1": 55.0,
+            "x2": 361.0,
+            "y2": 104.00031999999999
+          }
+        },
+        {
+          "class_id": 2,
+          "class_name": "mousebite",
+          "box": {
+            "x1": 180.0,
+            "y1": 108.99968000000001,
+            "x2": 215.00032,
+            "y2": 140.0
+          }
+        },
+        {
+          "class_id": 2,
+          "class_name": "mousebite",
+          "box": {
+            "x1": 176.00032000000002,
+            "y1": 171.99967999999998,
+            "x2": 214.00032,
+            "y2": 201.99967999999998
+          }
+        },
+        {
+          "class_id": 5,
+          "class_name": "pin-hole",
+          "box": {
+            "x1": 228.00032000000002,
+            "y1": 187.0,
+            "x2": 271.0,
+            "y2": 213.0
+          }
+        },
+        {
+          "class_id": 2,
+          "class_name": "mousebite",
+          "box": {
+            "x1": 272.0,
+            "y1": 538.0,
+            "x2": 312.99968,
+            "y2": 569.00032
+          }
+        },
+        {
+          "class_id": 2,
+          "class_name": "mousebite",
+          "box": {
+            "x1": 68.0,
+            "y1": 60.0,
+            "x2": 100.0,
+            "y2": 87.00032
+          }
+        },
+        {
+          "class_id": 4,
+          "class_name": "copper",
+          "box": {
+            "x1": 190.0,
+            "y1": 388.0,
+            "x2": 221.00032,
+            "y2": 428.99968
+          }
+        },
+        {
+          "class_id": 5,
+          "class_name": "pin-hole",
+          "box": {
+            "x1": 382.99968000000007,
+            "y1": 550.0,
+            "x2": 430.0,
+            "y2": 578.0
+          }
+        }
+      ],
+      "prediction": {
+        "detections": [
+          {
+            "box": {
+              "x1": 272.0,
+              "y1": 536.0,
+              "x2": 311.0,
+              "y2": 568.0
+            },
+            "confidence": 0.9125,
+            "class_id": 2,
+            "class_name": "mousebite"
+          },
+          {
+            "box": {
+              "x1": 175.0,
+              "y1": 169.0,
+              "x2": 214.0,
+              "y2": 202.0
+            },
+            "confidence": 0.9118,
+            "class_id": 2,
+            "class_name": "mousebite"
+          },
+          {
+            "box": {
+              "x1": 384.0,
+              "y1": 551.0,
+              "x2": 428.0,
+              "y2": 577.0
+            },
+            "confidence": 0.909,
+            "class_id": 5,
+            "class_name": "pin-hole"
+          },
+          {
+            "box": {
+              "x1": 228.0,
+              "y1": 187.0,
+              "x2": 270.0,
+              "y2": 212.0
+            },
+            "confidence": 0.9057,
+            "class_id": 5,
+            "class_name": "pin-hole"
+          },
+          {
+            "box": {
+              "x1": 179.0,
+              "y1": 109.0,
+              "x2": 214.0,
+              "y2": 140.0
+            },
+            "confidence": 0.8954,
+            "class_id": 2,
+            "class_name": "mousebite"
+          },
+          {
+            "box": {
+              "x1": 191.0,
+              "y1": 388.0,
+              "x2": 221.0,
+              "y2": 427.0
+            },
+            "confidence": 0.8644,
+            "class_id": 4,
+            "class_name": "copper"
+          },
+          {
+            "box": {
+              "x1": 68.0,
+              "y1": 58.0,
+              "x2": 100.0,
+              "y2": 87.0
+            },
+            "confidence": 0.8429,
+            "class_id": 2,
+            "class_name": "mousebite"
+          },
+          {
+            "box": {
+              "x1": 326.0,
+              "y1": 55.0,
+              "x2": 361.0,
+              "y2": 102.0
+            },
+            "confidence": 0.8217,
+            "class_id": 1,
+            "class_name": "short"
+          },
+          {
+            "box": {
+              "x1": 329.0,
+              "y1": 240.0,
+              "x2": 363.0,
+              "y2": 274.0
+            },
+            "confidence": 0.816,
+            "class_id": 0,
+            "class_name": "open"
+          }
+        ],
+        "total_defects": 9,
+        "latency_ms": {
+          "preprocess": 134.07,
+          "inference": 283.66,
+          "postprocess": 129.52,
+          "total": 547.25
+        }
+      }
+    },
+    {
+      "file": "01_PCB__346.jpg",
+      "sorted_test_index": 75,
+      "ground_truth": [
+        {
+          "class_id": 0,
+          "class_name": "open",
+          "box": {
+            "x1": 224.0,
+            "y1": 338.99968,
+            "x2": 276.0,
+            "y2": 378.99968
+          }
+        },
+        {
+          "class_id": 1,
+          "class_name": "short",
+          "box": {
+            "x1": 113.00032,
+            "y1": 262.99968,
+            "x2": 146.0,
+            "y2": 290.99967999999996
+          }
+        },
+        {
+          "class_id": 2,
+          "class_name": "mousebite",
+          "box": {
+            "x1": 365.0,
+            "y1": 230.0,
+            "x2": 399.00000000000006,
+            "y2": 258.99968
+          }
+        },
+        {
+          "class_id": 1,
+          "class_name": "short",
+          "box": {
+            "x1": 125.0,
+            "y1": 381.00032,
+            "x2": 162.00032,
+            "y2": 413.00032
+          }
+        },
+        {
+          "class_id": 2,
+          "class_name": "mousebite",
+          "box": {
+            "x1": 226.0,
+            "y1": 194.99968,
+            "x2": 257.00032,
+            "y2": 222.99968
+          }
+        },
+        {
+          "class_id": 3,
+          "class_name": "spur",
+          "box": {
+            "x1": 295.00032,
+            "y1": 150.99999999999997,
+            "x2": 327.00032,
+            "y2": 177.0
+          }
+        },
+        {
+          "class_id": 5,
+          "class_name": "pin-hole",
+          "box": {
+            "x1": 380.0,
+            "y1": 143.0,
+            "x2": 404.99967999999996,
+            "y2": 173.0
+          }
+        },
+        {
+          "class_id": 4,
+          "class_name": "copper",
+          "box": {
+            "x1": 426.0,
+            "y1": 299.00032,
+            "x2": 454.0,
+            "y2": 331.00032
+          }
+        }
+      ],
+      "prediction": {
+        "detections": [
+          {
+            "box": {
+              "x1": 365.0,
+              "y1": 230.0,
+              "x2": 398.0,
+              "y2": 258.0
+            },
+            "confidence": 0.9154,
+            "class_id": 2,
+            "class_name": "mousebite"
+          },
+          {
+            "box": {
+              "x1": 380.0,
+              "y1": 143.0,
+              "x2": 404.0,
+              "y2": 172.0
+            },
+            "confidence": 0.9077,
+            "class_id": 5,
+            "class_name": "pin-hole"
+          },
+          {
+            "box": {
+              "x1": 224.0,
+              "y1": 339.0,
+              "x2": 277.0,
+              "y2": 378.0
+            },
+            "confidence": 0.8723,
+            "class_id": 0,
+            "class_name": "open"
+          },
+          {
+            "box": {
+              "x1": 226.0,
+              "y1": 194.0,
+              "x2": 256.0,
+              "y2": 222.0
+            },
+            "confidence": 0.868,
+            "class_id": 2,
+            "class_name": "mousebite"
+          },
+          {
+            "box": {
+              "x1": 426.0,
+              "y1": 299.0,
+              "x2": 452.0,
+              "y2": 330.0
+            },
+            "confidence": 0.8585,
+            "class_id": 4,
+            "class_name": "copper"
+          },
+          {
+            "box": {
+              "x1": 113.0,
+              "y1": 262.0,
+              "x2": 147.0,
+              "y2": 290.0
+            },
+            "confidence": 0.8352,
+            "class_id": 1,
+            "class_name": "short"
+          },
+          {
+            "box": {
+              "x1": 295.0,
+              "y1": 151.0,
+              "x2": 329.0,
+              "y2": 176.0
+            },
+            "confidence": 0.8342,
+            "class_id": 3,
+            "class_name": "spur"
+          },
+          {
+            "box": {
+              "x1": 128.0,
+              "y1": 380.0,
+              "x2": 163.0,
+              "y2": 411.0
+            },
+            "confidence": 0.7531,
+            "class_id": 1,
+            "class_name": "short"
+          }
+        ],
+        "total_defects": 8,
+        "latency_ms": {
+          "preprocess": 13.68,
+          "inference": 492.45,
+          "postprocess": 185.24,
+          "total": 691.37
+        }
+      }
+    }
+  ],
+  "generator_source_sha256": "ad910b76aa9d810fbad7ccd9cbd2fd838553a4c8d77462a3c4ebb67f531fa985"
+}

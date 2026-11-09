@@ -1,9 +1,11 @@
 import json
 from contextlib import contextmanager
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import yaml
 
 from ml import evaluate, tracker
 
@@ -121,6 +123,36 @@ def test_nonfinite_metrics_are_rejected(tmp_path):
         evaluate._metrics_dict(metrics, "test")
 
 
+def test_macro_f1_is_mean_of_class_f1_not_f1_of_mean_precision_recall(tmp_path):
+    metrics = evaluation_metrics(tmp_path)
+    metrics.box.mp = metrics.box.mr = 0.5
+    metrics.box.ap_class_index = np.array([0, 4])
+    metrics.box.f1 = np.array([0.18, 0.18])
+    metrics.box.p = np.array([0.1, 0.9])
+    metrics.box.r = np.array([0.9, 0.1])
+
+    result = evaluate._metrics_dict(metrics, "test")
+
+    assert result["test_f1"] == pytest.approx(0.18)
+    assert result["test_f1_open"] == pytest.approx(0.18)
+    assert result["test_f1_copper"] == pytest.approx(0.18)
+
+
+def test_evaluation_resolves_project_dataset_path_without_changing_source(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data/processed").mkdir(parents=True)
+    source = tmp_path / "configs/data.yaml"
+    source.parent.mkdir()
+    original = "path: data/processed\ntest: test/images\nnames: [open]\n"
+    source.write_text(original, encoding="utf-8")
+
+    resolved = evaluate._resolved_data_config(str(source), tmp_path / "reports/metrics.json")
+
+    data = yaml.safe_load(resolved.read_text(encoding="utf-8"))
+    assert Path(data["path"]) == tmp_path / "data/processed"
+    assert source.read_text(encoding="utf-8") == original
+
+
 @pytest.mark.parametrize("split", ["test", "val"])
 def test_evaluation_writes_report_without_rewriting_model_metadata(tmp_path, monkeypatch, split):
     model = tmp_path / "candidate.onnx"
@@ -159,6 +191,10 @@ def test_evaluation_writes_report_without_rewriting_model_metadata(tmp_path, mon
     report = json.loads(output.read_text())
     assert calls["validation"]["split"] == split
     assert calls["validation"]["device"] == "cpu"
+    assert calls["validation"]["plots"] is True
+    assert calls["validation"]["conf"] == 0.001
+    assert calls["validation"]["iou"] == 0.7
+    assert calls["validation"]["workers"] == 0
     assert calls["tracking"]["actual_device"] == "cpu"
     assert str(metadata) not in calls["tracking"]["artifacts"]
     assert report["model_sha256"] == tracker.file_sha256(model)

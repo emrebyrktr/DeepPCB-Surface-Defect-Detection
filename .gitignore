@@ -48,3 +48,6 @@ pcb_mlflow/
 mlruns/
 mlartifacts/
 mlflow.db*
+reports/*
+!reports/metrics.json
+leakage_report/

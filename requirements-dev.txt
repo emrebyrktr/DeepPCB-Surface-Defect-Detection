@@ -1,4 +1,12 @@
--r requirements.txt
+# API dependencies, with the OpenCV build required by Ultralytics
+fastapi
+uvicorn
+pydantic
+pyyaml
+python-multipart
+numpy
+opencv-python
+onnxruntime
 
 # Training and experiments
 ultralytics
@@ -18,5 +26,6 @@ locust
 # Development tools
 jupyter
 matplotlib
+pillow
 streamlit
 requests

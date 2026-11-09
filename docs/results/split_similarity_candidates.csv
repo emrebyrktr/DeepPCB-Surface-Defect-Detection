@@ -1,0 +1,17 @@
+split,file,train_neighbor,hamming
+val,01_PCB__1459.jpg,01_PCB__1463.jpg,1
+val,01_PCB__1455.jpg,01_PCB__1463.jpg,2
+test,01_PCB__1483.jpg,01_PCB__1479.jpg,2
+test,01_PCB__1487.jpg,01_PCB__1479.jpg,2
+test,01_PCB__1395.jpg,01_PCB__1399.jpg,3
+val,01_PCB__1156.jpg,01_PCB__1188.jpg,4
+test,01_PCB__1187.jpg,01_PCB__1155.jpg,9
+test,01_PCB__1253.jpg,01_PCB__864.jpg,10
+test,01_PCB__912.jpg,01_PCB__855.jpg,10
+test,01_PCB__1427.jpg,01_PCB__1423.jpg,11
+val,01_PCB__648.jpg,01_PCB__647.jpg,14
+test,01_PCB__1486.jpg,01_PCB__1482.jpg,14
+val,01_PCB__853.jpg,01_PCB__855.jpg,17
+val,01_PCB__1446.jpg,01_PCB__1450.jpg,18
+test,01_PCB__1280.jpg,01_PCB__855.jpg,18
+test,01_PCB__857.jpg,01_PCB__858.jpg,18
