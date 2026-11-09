@@ -53,6 +53,34 @@ Training and serving have separate dependencies. The API image runs ONNX Runtime
 - **Input limits:** Uploads default to a 10 MiB limit, and decoded images are limited to 25 million pixels. Invalid images receive an error response.
 - **Deployment:** The container that passes the inference smoke check is pushed to Docker Hub without rebuilding. Render receives a deployment request using that image's digest.
 
+## Repository layout
+ 
+```text
+.
+├── .github/workflows/   # ci.yml, cd.yml
+├── app/
+│   ├── api/             # FastAPI endpoints and response schemas
+│   ├── core/            # ONNX detector and configuration
+│   ├── services/        # model loading and prediction flow
+│   ├── ui/              # Streamlit client (app.py)
+│   └── utils/           # config loading and shared helpers
+├── configs/             # config.yaml, data.yaml
+├── data/                # DVC-tracked dataset (not stored in Git)
+├── docs/
+│   ├── img/             
+│   └── split_leakage/   # near_duplicates.csv
+├── ml/                  # prepare_data, train, export_package, evaluate, tracker
+├── models/              # pcb_defect_best.onnx, metadata.json (not stored in Git)
+├── scripts/             # smoke_api.py, check_split_leakage.py
+├── tests/               # pytest suite and locustfile.py
+├── Dockerfile
+├── dvc.yaml
+├── dvc.lock
+├── pyproject.toml
+├── requirements.txt
+└── requirements-dev.txt
+```
+
 ## Code map
 
 | Location | Responsibility |
