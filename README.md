@@ -1,106 +1,24 @@
 # PCB Defect Detection and MLOps
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-1.31-005CED?logo=onnx&logoColor=white)](https://onnxruntime.ai/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![DVC](https://img.shields.io/badge/DVC-Data_Versioned-945DD6?logo=dvc&logoColor=white)](https://dvc.org/)
-[![MLflow](https://img.shields.io/badge/MLflow-Tracking-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
-[![CI Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yaml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/ci.yaml)
-[![CD Pipeline](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yaml/badge.svg)](https://github.com/emrebyrktr/Proje1/actions/workflows/cd.yaml)
 
-An object detector for six types of printed circuit board defects, served through a CPU-based inference API. The repository covers dataset preparation, YOLOv8 training, evaluation, ONNX export, and automated Docker deployment.
+This project detects six PCB defect categories: `open`, `short`, `mousebite`, `spur`, `copper`, and `pin-hole`. I built it to practise taking a computer-vision model beyond training: versioning data, packaging a model for CPU inference, exposing it through an API, testing the service, automating releases, and monitoring the running API.
 
-The main goal is to take a trained model beyond a training notebook: package its inputs and outputs, test the serving code, and publish the same container image that passed inference checks.
+The model is based on YOLOv8n and the DeepPCB dataset. The deployment on Render was used as a validation environment rather than a public product demo.
 
-**Stack:** Python 3.11, Ultralytics YOLOv8, ONNX Runtime, OpenCV, FastAPI, DVC, MLflow, Docker, GitHub Actions, Render.
+![Example detections](docs/results/predictions.png)
 
-## Dataset and task
+**Stack:** Python 3.11, Ultralytics YOLOv8, ONNX Runtime, OpenCV, FastAPI, DVC, MLflow, Docker, GitHub Actions, Prometheus, Grafana, Render.
 
-The dataset was downloaded from [Deep PCB on Kaggle](https://www.kaggle.com/datasets/arnablaha05/deep-pcb/data). The model predicts bounding boxes, class labels, and confidence scores for six defect classes:
+## Why I built this
 
-| Class | Defect |
-|---|---|
-| `open` | Broken circuit trace |
-| `short` | Unwanted connection between traces |
-| `mousebite` | Notch along a trace edge |
-| `spur` | Protrusion along a trace edge |
-| `copper` | Spurious copper |
-| `pin-hole` | Hole in a copper region |
+I built this project to understand the work that happens after a model produces a good score in a notebook. PCB inspection was a useful case because it is a real visual quality-control problem and the DeepPCB dataset provides labelled examples for object detection.
 
-Data and model files are stored through DVC and Google Drive. Git tracks the source code, configuration, pipeline definitions, and DVC references.
+My main goal was not to claim a production-ready factory system. It was to learn how a model can be versioned, exported, served, tested, deployed, and observed as one project. The current implementation is a first version that can be improved through new experiments, data review, and retraining.
 
-## Architecture
+## Results
 
-```mermaid
-flowchart LR
-    A["DeepPCB / DVC"] --> B["Data preparation"]
-    B --> C["YOLOv8 training"]
-    C --> D["ONNX + metadata"]
-    D --> E["Evaluation / MLflow"]
-    D --> F["FastAPI / ONNX Runtime"]
-    H["PCB image"] --> F
-    F --> G["Boxes, classes, scores, timing"]
-```
+The released ONNX model was re-evaluated on 150 test images containing 984 annotated defects. Evaluation used ONNX Runtime on CPU with an image size of 640.
 
-Training and serving have separate dependencies. The API image runs ONNX Runtime on CPU without installing PyTorch or Ultralytics. Evaluation results and model, data, and code identifiers are recorded in a local MLflow store.
-
-### Implementation decisions
-
-- **Data preparation:** Image/label pairs and bounding boxes are validated. New outputs are staged before replacing existing data, with rollback on failure.
-- **Checkpoint selection:** Training uses the best checkpoint produced by the trainer. A temporary copy and atomic replacement protect the existing checkpoint during publication.
-- **Model loading:** The API loads the ONNX file and metadata at startup. Invalid or missing files stop startup. A model hash is checked when the metadata provides one.
-- **Inference:** Preprocessing, CPU inference, and per-class OpenCV NMS form the detection pipeline. Inference runs in a thread pool to keep it out of the async request loop.
-- **Input limits:** Uploads default to a 10 MiB limit, and decoded images are limited to 25 million pixels. Invalid images receive an error response.
-- **Deployment:** The container that passes the inference smoke check is pushed to Docker Hub without rebuilding. Render receives a deployment request using that image's digest.
-
-## Repository layout
-
-```text
-.
-├── .github/workflows/   # ci.yaml, cd.yaml
-├── app/
-│   ├── api/             # FastAPI endpoints and response schemas
-│   ├── core/            # ONNX detector and configuration
-│   ├── services/        # model loading and prediction flow
-│   ├── ui/              # Streamlit client (app.py)
-│   └── utils/           # config loading and shared helpers
-├── configs/             # config.yaml, data.yaml
-├── docs/results/         # Evaluation figures and source summary
-├── data/                # DVC-tracked dataset (not stored in Git)
-├── ml/                  # prepare_data, train, export_package, evaluate, tracker
-├── models/              # pcb_defect_best.onnx, metadata.json (not stored in Git)
-├── scripts/             # smoke_api.py, check_split_leakage.py
-├── tests/               # pytest suite and locustfile.py
-├── Dockerfile
-├── dvc.yaml
-├── dvc.lock
-├── pyproject.toml
-├── requirements.txt
-└── requirements-dev.txt
-```
-
-## Code map
-
-| Location | Responsibility |
-|---|---|
-| [ml/prepare_data.py](ml/prepare_data.py) | Label conversion, validation, and dataset preparation |
-| [ml/train.py](ml/train.py) | Training and best-checkpoint publication |
-| [ml/export_package.py](ml/export_package.py) | ONNX export and metadata generation |
-| [ml/evaluate.py](ml/evaluate.py), [ml/tracker.py](ml/tracker.py) | Evaluation reports and MLflow records |
-| [app/core/onnx_detector.py](app/core/onnx_detector.py) | Preprocessing, inference, and NMS |
-| [app/utils/config_loader.py](app/utils/config_loader.py), [app/core/config.py](app/core/config.py) | Shared YAML loading and environment overrides |
-| [app/services/](app/services/) | Model loading and prediction flow |
-| [app/api/](app/api/) | FastAPI endpoints and response schemas |
-| [app/ui/app.py](app/ui/app.py) | Local Streamlit client for the API |
-| [scripts/build_readme_results.py](scripts/build_readme_results.py) | Figures and example predictions from the evaluation report |
-| [tests/](tests/) | Service, model-package, and pipeline regression tests |
-| [.github/workflows/](.github/workflows/) | CI checks and automated releases |
-
-## Results and verification
-
-The released ONNX model was re-evaluated on **150 test images with 984 annotated defects** on 9 November 2026. The current [evaluation report](reports/metrics.json) records the model hash, validation settings, and local MLflow run. [Figure sources and sample predictions](docs/results/summary.json) include a content fingerprint of the test images and labels.
-
-| Metric | Current test result |
+| Metric | Result |
 |---|---:|
 | Precision (class mean) | 96.41% |
 | Recall (class mean) | 94.94% |
@@ -108,114 +26,156 @@ The released ONNX model was re-evaluated on **150 test images with 984 annotated
 | mAP@50 | 97.82% |
 | mAP@50-95 | 77.57% |
 
-Validation used ONNX Runtime on CPU, image size 640, batch size 1, confidence floor 0.001, and NMS IoU 0.70. Summary precision, recall, and F1 use Ultralytics' maximum mean-F1 confidence point; macro F1 is the mean of class F1 scores. The release metadata retains its earlier measurements. The table above comes from this new run.
+> These results come from the current image-level test split. Independence by physical PCB family has not been verified, so they describe this split rather than expected production accuracy.
 
-### Class results
+## Quick start
 
-`Images` counts test images containing the class; these counts overlap across classes. `Objects` counts annotated boxes. All score columns are percentages.
+The model package is intentionally not committed to Git. Download the versioned ONNX model and metadata from the [model-v1.0.0 GitHub Release](https://github.com/emrebyrktr/Proje1/releases/tag/model-v1.0.0) and place both files in `models/`:
+
+```text
+models/
+├── pcb_defect_best.onnx
+└── metadata.json
+```
+
+Build and run the API:
+
+```bash
+docker build -t pcb-defect-api:local .
+docker run --rm --name pcb-api -p 127.0.0.1:8000:8000 pcb-defect-api:local
+```
+
+Open `http://127.0.0.1:8000/docs`, or send an image request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/predict -F "file=@your_image.jpg"
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/health` | Returns model name, version, device, and classes |
+| `POST /api/v1/predict` | Accepts an image in the `file` field and returns detections with timings |
+| `GET /metrics` | Exposes Prometheus metrics for the local monitoring setup |
+| `/docs` | Swagger UI for trying the API locally |
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[DeepPCB dataset] --> B[Data preparation and DVC]
+    B --> C[YOLOv8n training]
+    C --> D[ONNX export and metadata]
+    D --> E[CPU evaluation and MLflow]
+    D --> F[Docker image]
+    G[PCB image] --> H[FastAPI and ONNX Runtime]
+    F --> H
+    H --> I[Boxes, classes, confidence, timings]
+```
+
+Training and serving are kept separate. The training workflow uses Ultralytics, while the API image runs the exported ONNX model through ONNX Runtime on CPU and does not install PyTorch or Ultralytics. The Docker image contains only the model package and dependencies needed for inference.
+
+## Key design decisions
+
+- **ONNX Runtime for serving:** The trained YOLOv8 model is exported to ONNX so that the API can run on CPU without the training framework. This keeps the serving image focused, but a new model version must be exported and packaged before release.
+- **Model package outside Git:** Large model files are excluded from Git. The released model package is stored as a GitHub Release asset, and CD downloads it and verifies both SHA-256 hashes before building the release image.
+- **Fast feedback in CI, real-model validation in CD:** CI creates a small valid ONNX fixture so linting, tests, Docker startup, and HTTP checks remain fast. CD then validates the actual released model before any image is published.
+- **Local operational monitoring:** The API exposes request, latency, HTTP status, detected-class, and confidence metrics at `/metrics`. Prometheus and Grafana are used locally to make the service behaviour visible; this is service monitoring, not live model-quality monitoring.
+
+## Training pipeline
+
+`prepare_data → train → export → evaluate` is defined in [`dvc.yaml`](dvc.yaml).
+
+- Settings are kept in [`configs/config.yaml`](configs/config.yaml) and [`configs/data.yaml`](configs/data.yaml).
+- DVC tracks the data and pipeline outputs through the configured remote, while Git tracks source code, configuration, and pipeline definitions.
+- MLflow records the evaluation run and its model, data, and code identifiers locally.
+- The current numbers come from a later CPU re-evaluation of the released ONNX package; the model weights were not retrained after the checked-in pipeline run.
+
+## CI/CD
+
+Every push to `main` starts CI. It runs Ruff, the pytest suite, and Docker/HTTP checks using a small test model created during the workflow. This keeps routine checks independent of the large released model file.
+
+After CI succeeds, CD downloads `model-v1.0.0`, verifies the model package hashes, builds an image with the real model, and performs an inference smoke test. The same tested image is then tagged and pushed to Docker Hub. If the tested commit is still the latest commit on `main`, the workflow sends its image digest to Render for deployment.
+
+Building this flow showed why a passing unit-test model is not enough on its own: the actual model package must also be downloaded, verified, loaded, and used in an inference request before release.
+
+## Limitations and next steps
+
+- **Possible split leakage:** The audit found near-duplicate candidates across splits: 6 validation-to-train, 10 test-to-train, and 2 validation-to-test. They require manual review. A stronger next step is to group images by PCB family before splitting and then re-evaluate.
+- **Different validation and serving thresholds:** Evaluation uses a confidence threshold of `0.001` to calculate curves, whereas the API serves predictions at `0.30`. The next step is to choose the serving threshold against a defined business trade-off between missed defects and false alarms.
+- **CPU latency:** The validation compute path averages about 197 ms per image on an Intel i5-9300H CPU with batch size 1. This excludes image loading, API startup, and HTTP overhead. Hardware comparison or a smaller model would be the next optimisation step.
+- **Weakest class:** `short` has the lowest recall at 89.21%. Reviewing its missed samples and adding representative training data would be the first class-specific improvement.
+- **Production model quality:** The current dashboard measures service behaviour only. Real model-performance monitoring would require delayed ground-truth labels from inspected boards.
+
+## What I learned
+
+- A trained model is not enough for a reliable demo; the model file, metadata, preprocessing, API contract, and container must stay compatible.
+- CI can use a small deterministic model to be fast, but CD must still validate the real package before publishing an image.
+- A successful deployment does not prove that the model is correct in production. Request metrics help detect service problems, while model-quality monitoring needs labelled feedback.
+- DVC, MLflow, GitHub Releases, and Docker address different parts of reproducibility; using them together made the boundaries between data, experiments, model artifacts, and serving clearer.
+
+<details>
+<summary><b>Detailed evaluation</b></summary>
+
+Validation used ONNX Runtime on CPU, image size 640, batch size 1, confidence `0.001`, and NMS IoU `0.70`. Precision, recall, and F1 are reported at Ultralytics' best mean-F1 operating point.
 
 | Class | Images | Objects | Precision | Recall | F1 | AP@50 | AP@50-95 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| open | 134 | 191 | 97.87% | 96.35% | 97.10% | 97.78% | 69.67% |
-| short | 114 | 170 | 95.59% | 89.21% | 92.29% | 95.28% | 68.98% |
-| mousebite | 129 | 194 | 94.29% | 97.42% | 95.83% | 98.63% | 75.60% |
-| spur | 113 | 153 | 98.17% | 95.42% | 96.78% | 97.79% | 75.45% |
-| copper | 119 | 140 | 97.84% | 97.14% | 97.49% | 99.28% | 89.23% |
-| pin-hole | 124 | 136 | 94.74% | 94.12% | 94.43% | 98.18% | 86.52% |
+| `open` | 134 | 191 | 97.87% | 96.35% | 97.10% | 97.78% | 69.67% |
+| `short` | 114 | 170 | 95.59% | 89.21% | 92.29% | 95.28% | 68.98% |
+| `mousebite` | 129 | 194 | 94.29% | 97.42% | 95.83% | 98.63% | 75.60% |
+| `spur` | 113 | 153 | 98.17% | 95.42% | 96.78% | 97.79% | 75.45% |
+| `copper` | 119 | 140 | 97.84% | 97.14% | 97.49% | 99.28% | 89.23% |
+| `pin-hole` | 124 | 136 | 94.74% | 94.12% | 94.43% | 98.18% | 86.52% |
 
 ![Per-class AP at IoU 0.50 and IoU 0.50-0.95](docs/results/class_ap.png)
 
-`short` has the lowest recall (89.21%). `short` and `open` also have the lowest AP@50-95, making them useful starting points for reviewing missed detections and box localization.
-
-### Confusion matrix
-
 ![Normalized detection confusion matrix](docs/results/confusion_matrix_normalized.png)
 
-[Raw counts](docs/results/confusion_matrix.png). Columns represent ground truth and rows represent predictions. The background row contains missed objects; the background column contains unmatched detections. This matrix uses validation confidence 0.001 and ground-truth matching IoU 0.45; its operating point differs from the summary P/R/F1 values.
-
-<details>
-<summary>Precision-recall and F1-confidence curves</summary>
+[View the raw-count confusion matrix](docs/results/confusion_matrix.png). In these matrices, columns represent ground truth and rows represent predictions. The background row contains missed objects; the background column contains unmatched detections.
 
 ![Precision-recall curve](docs/results/pr_curve.png)
 
 ![F1 versus confidence](docs/results/f1_curve.png)
 
+The validation compute path averaged 5.22 ms preprocessing, 187.78 ms inference, and 3.72 ms postprocessing per image: 196.72 ms in total. This is not an HTTP end-to-end latency measurement.
+
 </details>
 
-### Example detections
+<details>
+<summary><b>Split leakage audit</b></summary>
 
-![Ground truth and ONNX predictions on two fixed test samples](docs/results/predictions.png)
+The audit checks exact cross-split duplicates with MD5, image-similarity candidates with a 256-bit dHash, and shared label-coordinate candidates. A Hamming-distance threshold of 20 is the script default and is used as a review threshold, not proof of leakage.
 
-Left: annotations. Right: actual predictions from the API's `ONNXDetector`, using confidence 0.30 and NMS IoU 0.45 on CPU. Samples are fixed sorted positions 0 and 75 (`01_PCB__101.jpg` and `01_PCB__346.jpg`), selected before reviewing predictions. These serving thresholds differ from the validation settings above.
-
-### Timing and split checks
-
-Local validation averaged **5.22 ms preprocessing, 187.78 ms inference, and 3.72 ms postprocessing per image** (196.72 ms combined) on an Intel Core i5-9300H CPU. This measures the validation compute path with batch size 1; image loading, startup, and HTTP overhead are outside this timing.
-
-The split audit found no byte-identical files across splits. At the default dHash threshold of 20/256 bits, it flagged [6 validation-to-train and 10 test-to-train candidates](docs/results/split_similarity_candidates.csv), plus [2 validation-to-test candidates](docs/results/val_test_similarity_candidates.csv). These require manual review. Independence by physical PCB family has not been established, so the scores describe the current image split.
-
-**Deployment check:** On 9 November 2026, an automatic release reached `Live` on Render. A real PCB request returned `success: true`, seven detections, and about five seconds total processing time. That is a separate cloud request measurement.
-
-To repeat the model evaluation and rebuild the figures:
-
-```powershell
-python -m ml.evaluate --model models/pcb_defect_best.onnx --device cpu --tracking-uri sqlite:///mlflow.db
-python -m scripts.build_readme_results
+```bash
+python scripts/check_split_leakage.py --root data/processed
 ```
 
-Metric definitions and validation behavior: [Ultralytics validation](https://docs.ultralytics.com/modes/val/) and [performance metrics](https://docs.ultralytics.com/guides/yolo-performance-metrics/).
+The checked-in review outputs are [`split_similarity_candidates.csv`](docs/results/split_similarity_candidates.csv) and [`val_test_similarity_candidates.csv`](docs/results/val_test_similarity_candidates.csv). Only exact duplicates cause the script to fail; similarity candidates require manual inspection.
 
-## Local setup
+</details>
 
-Run commands from the repository root. Both the API and the Docker build require:
+<details>
+<summary><b>Local monitoring</b></summary>
 
-```text
-models/pcb_defect_best.onnx
-models/metadata.json
-```
+The API exposes Prometheus metrics at `/metrics`. In the local setup, Prometheus scrapes the API every 15 seconds and Grafana displays prediction request count, mean HTTP response time, HTTP 4xx/5xx rate, detected defects by class, and mean detection confidence.
 
-Download the two files from the [model-v1.0.0 release](https://github.com/emrebyrktr/Proje1/releases/tag/model-v1.0.0) into `models/`. Developers with access to the configured DVC remote can also use `dvc pull`. Model files and data are excluded from Git; Google Drive credentials belong in the local `.dvc/config.local` file.
+The configuration files are [`configs/prometheus.yaml`](configs/prometheus.yaml), [`configs/grafana_dashboard.json`](configs/grafana_dashboard.json), and [`configs/grafana_alerts.yaml`](configs/grafana_alerts.yaml). API counters reset when the API restarts.
 
-### Docker
+</details>
 
-```powershell
-docker build -t pcb-defect-api:local .
-docker run --rm --name pcb-api -p 127.0.0.1:8000:8000 pcb-defect-api:local
-```
+<details>
+<summary><b>Development and tests</b></summary>
 
-The Dockerfile uses `python:3.11-slim`, an unprivileged application user, and a health check.
-
-### Python
-
-This setup includes the training, UI, and test tools. Docker uses the API-only `requirements.txt`; development uses `requirements-dev.txt` with the OpenCV package required by Ultralytics.
-
-```powershell
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
-python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
-```
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/v1/health` | Model name, version, device, and classes |
-| `POST /api/v1/predict` | Image upload in the `file` field; detections and timing |
-| `/docs` | Local Swagger documentation |
-
-The `/health` and `/predict` aliases are also available. The local server address is `http://127.0.0.1:8000`.
-
-## Development and tests
-
-With the development environment activated:
-
-```powershell
 python -m ruff check app/ ml/ scripts/ tests/
 python -m pytest tests/ -v
 ```
 
-The test suite covers API responses and invalid inputs, model/metadata validation, per-class NMS, export and tracking behavior, dataset preparation failures, and interrupted checkpoint publication. The normal test run does not start model training.
+The tests cover API responses and invalid inputs, model and metadata validation, per-class NMS, export and tracking behaviour, and failure cases in dataset preparation and checkpoint publication. Model training is not started by the normal test run.
 
-Integration checks with the actual model are opt-in:
+For an optional local check with the actual model:
 
 ```powershell
 $env:RUN_MODEL_INTEGRATION = "1"
@@ -223,68 +183,36 @@ python -m pytest tests/test_detector.py -m integration -v
 Remove-Item Env:RUN_MODEL_INTEGRATION
 ```
 
-To check health and inference against a running local API:
+</details>
 
-```powershell
-python scripts/smoke_api.py --expected-model DeepPCB-YOLOv8
-```
-
-The Streamlit client can be started in a separate terminal with `streamlit run app/ui/app.py`. An optional Locust scenario is available in `tests/locustfile.py`.
-
-To inspect duplicate files and similarity candidates across dataset splits:
-
-```powershell
-python scripts/check_split_leakage.py --root data/processed
-```
-
-Outputs are written to `reports/split_leakage/`. `near_duplicates.csv` compares validation/test images with training images; `val_test_near_duplicates.csv` compares validation with test when both are present. Similarity and matching label coordinates are review candidates. Only byte-identical files across splits cause exit code `1`; missing or empty splits return `2`.
-
-## Training pipeline
-
-[dvc.yaml](dvc.yaml) defines:
+<details>
+<summary><b>Repository layout</b></summary>
 
 ```text
-prepare_data → train → export → evaluate
+.
+├── .github/workflows/   # CI and CD workflows
+├── app/                 # FastAPI service, detector, inference flow, Streamlit client
+├── configs/             # Training, DVC, Prometheus, Grafana configuration
+├── data/                # DVC-tracked dataset; not stored in Git
+├── docs/results/        # Evaluation figures and split-audit outputs
+├── ml/                  # Data preparation, training, export, evaluation, tracking
+├── models/              # Released ONNX model package; not stored in Git
+├── scripts/             # Smoke checks, CI fixture, result and leakage utilities
+├── tests/               # API, detector, package, and pipeline tests
+├── Dockerfile
+├── dvc.yaml
+├── dvc.lock
+├── requirements.txt
+└── requirements-dev.txt
 ```
 
-With training data and development dependencies in place, `dvc repro` runs changed pipeline stages and may start training. Model and training settings are in [configs/config.yaml](configs/config.yaml); dataset paths and class names are in [configs/data.yaml](configs/data.yaml). The default training device is `0`, while serving uses `cpu`.
+</details>
 
-The checked-in `dvc.lock` describes an earlier full pipeline run. Model weights have not been retrained; the current CPU evaluation is recorded separately in `reports/metrics.json`. Training and model promotion are manually initiated; evaluation results are recorded in MLflow.
+## Acknowledgements
 
-## CI/CD
+- Dataset: [DeepPCB on Kaggle](https://www.kaggle.com/datasets/arnablaha05/deep-pcb/data)
+- Libraries: [Ultralytics YOLO](https://github.com/ultralytics/ultralytics), [ONNX Runtime](https://onnxruntime.ai/), [FastAPI](https://fastapi.tiangolo.com/), [DVC](https://dvc.org/), [MLflow](https://mlflow.org/), [Prometheus](https://prometheus.io/), and [Grafana](https://grafana.com/)
 
-```text
-Push to main
-  → CI: Ruff, pytest, and Docker/HTTP checks with a test model
-  → CD: download the real model package and verify its hashes
-  → build the container and check inference with the real model
-  → push the tested image to Docker Hub
-  → request a Render deployment by digest for the current main commit
-```
+## License
 
-- [ci.yaml](.github/workflows/ci.yaml) runs on pushes and pull requests to `main`. Its small ONNX fixture checks the serving code.
-- [cd.yaml](.github/workflows/cd.yaml) runs after successful CI for a `main` push from the same repository. It downloads the actual model from a GitHub release; the CI fixture is not published.
-- Each run creates an image tag containing the tested commit SHA and run identifiers. The current release candidate also receives the `demo` tag. Render is given the image digest.
-- Release runs are queued. If the tested commit is no longer the tip of `main`, the deployment request is skipped.
-- Failed model verification or inference checks stop publication. A successful hook request and a `Live` deployment are checked separately.
-
-Required GitHub Actions repository secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `RENDER_DEPLOY_HOOK`. Secret values are kept out of workflow files.
-
-A new model release requires updating its release tag and both package hashes in the CD workflow. Model versions and application/image versions are tracked separately.
-
-## Local monitoring
-
-The API logs request methods, paths, HTTP statuses and durations, and exposes Prometheus metrics at `/metrics`.
-
-- [Prometheus configuration](configs/prometheus.yaml): collects metrics every 15 seconds.
-- [Grafana dashboard](configs/grafana_dashboard.json): shows prediction request count, mean HTTP response time in milliseconds, HTTP 4xx/5xx percentage, detected defect counts by class, and mean detection confidence (0–1).
-
-The panels show cumulative measurements since API startup.
-
-When using Docker Desktop, start the host API with:
-
-```powershell
-python -m uvicorn app.api.main:app --host 0.0.0.0 --port 8000
-```
-
-Prometheus and Grafana share the `pcb-monitoring` Docker network. Grafana connects to `http://pcb-prometheus:9090`. When importing the dashboard into another Grafana instance, reassign its Prometheus data source.
+No license has been added yet. This repository is shared as a portfolio and learning project.
